@@ -58,6 +58,22 @@
 <button id="go" class="w-full bg-primary text-on-primary font-body-bold py-4 rounded-lg hover:bg-on-primary-container transition-colors flex items-center justify-center gap-2 shadow-sm">用此规范开始排版 <span class="material-symbols-outlined">arrow_forward</span></button>
 </div>
 </main>
+
+<!-- AI 对齐助手（带上下文，可改规则）-->
+<button id="chat-fab" class="fixed bottom-6 right-6 z-50 bg-primary text-on-primary rounded-full shadow-lg px-5 py-3 font-body-bold flex items-center gap-2 hover:bg-on-primary-container transition-colors">
+<span class="material-symbols-outlined">forum</span>有问题？来聊一聊</button>
+<div id="chat-panel" class="hidden fixed bottom-6 right-6 z-50 w-[380px] max-w-[92vw] h-[520px] max-h-[80vh] glass-panel rounded-xl flex flex-col overflow-hidden">
+<div class="flex items-center justify-between px-4 py-3 border-b border-surface-variant">
+<div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary">forum</span><span class="font-body-bold">对齐助手</span><span id="chat-ctx" class="text-label-caps text-secondary"></span></div>
+<button id="chat-close" class="text-secondary hover:text-primary"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div id="chat-msgs" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+<div class="p-3 border-t border-surface-variant flex gap-2">
+<input id="chat-input" class="flex-1 rounded-lg border border-outline-variant px-3 py-2 bg-surface-container-lowest text-body-base" placeholder="问我，或让我改规则（如：正文改五号）">
+<button id="chat-send" class="bg-primary text-on-primary rounded-lg px-4 font-body-bold">发送</button>
+</div>
+</div>
+
 <script src="/static/js/app.js?v=p3"></script>
 <script>
 const fileInput=document.getElementById('file'), errBox=document.getElementById('err');
@@ -93,9 +109,14 @@ async function poll(sid){
   render(s);
 }
 const AUD={ ok:['text-success','✓ 来源支持'], infer:['text-warning','推断/报备'], missing:['text-secondary','待补'], wrong:['text-error','与来源矛盾'] };
+function renderSummaryCards(summary){
+  document.getElementById('summary').innerHTML=(summary||[]).map(x=>`<div class="border border-outline-variant rounded-lg p-3"><div class="text-label-caps text-secondary">${esc(x.k)}</div><div class="font-body-bold mt-0.5">${esc(x.v)}</div></div>`).join('') || '<p class="text-secondary">（无）</p>';
+}
 function render(s){
   result.classList.remove('hidden');
-  document.getElementById('summary').innerHTML=(s.summary||[]).map(x=>`<div class="border border-outline-variant rounded-lg p-3"><div class="text-label-caps text-secondary">${esc(x.k)}</div><div class="font-body-bold mt-0.5">${esc(x.v)}</div></div>`).join('') || '<p class="text-secondary">（无）</p>';
+  currentTid = s.tid;
+  document.getElementById('chat-ctx').textContent = '· 已加载规范';
+  renderSummaryCards(s.summary);
   const a=s.audit||{items:[]}; const badge=document.getElementById('audit-badge');
   const wrong=(a.items||[]).filter(i=>i.status==='wrong').length;
   if(a.error){ badge.textContent='未自检'; }
@@ -104,5 +125,34 @@ function render(s){
   document.getElementById('audit').innerHTML=(a.items||[]).map(i=>{const[c,l]=AUD[i.status]||AUD.infer; return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-20">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}</div></li>`;}).join('') || '<li class="text-secondary">（无条目）</li>';
   document.getElementById('go').onclick=()=>{ location.href='/?tpl='+encodeURIComponent(s.tid); };
 }
+
+// ---- AI 对齐助手（带上下文，可改规则）----
+let currentTid = null;
+const chatMsgs = [];
+const _panel=document.getElementById('chat-panel'), _fab=document.getElementById('chat-fab'), _wrap=document.getElementById('chat-msgs');
+function bubble(role, text, note){
+  const d=document.createElement('div'); d.className=role==='user'?'flex justify-end':'flex justify-start';
+  d.innerHTML=`<div class="${role==='user'?'bg-primary text-on-primary':'bg-surface-container border border-surface-variant text-on-surface'} rounded-xl px-3 py-2 max-w-[85%] whitespace-pre-wrap text-body-base">${esc(text)}${note?`<div class="text-label-caps mt-1 text-success">${esc(note)}</div>`:''}</div>`;
+  _wrap.appendChild(d); _wrap.scrollTop=_wrap.scrollHeight; return d.firstChild;
+}
+_fab.onclick=()=>{ _panel.classList.remove('hidden'); _fab.classList.add('hidden');
+  if(!chatMsgs.length) bubble('assistant', currentTid?'这份规范已编译好。问我任何规则，或直接说怎么改——比如"信息栏居中""正文改五号""标题只有3级"，我帮你对齐并更新模板。':'我是 SmartDoc 助手。先上传一份规范文档或样本，我把它编译成模板；过程中有疑问随时问。'); };
+document.getElementById('chat-close').onclick=()=>{ _panel.classList.add('hidden'); _fab.classList.remove('hidden'); };
+async function sendChat(){
+  const inp=document.getElementById('chat-input'), btn=document.getElementById('chat-send');
+  const t=inp.value.trim(); if(!t) return;
+  inp.value=''; bubble('user', t); chatMsgs.push({role:'user',content:t});
+  const ph=bubble('assistant','正在思考…'); btn.disabled=true;
+  try{
+    const r=await API.chat({tid:currentTid, messages:chatMsgs});
+    ph.parentElement.remove();
+    bubble('assistant', r.reply||'(空)', (r.applied&&r.applied.length)?('✓ 已更新 '+r.applied.length+' 条规则'):'');
+    chatMsgs.push({role:'assistant',content:r.reply||''});
+    if(r.summary) renderSummaryCards(r.summary);
+  }catch(e){ ph.textContent='出错了：'+(e.message||''); }
+  finally{ btn.disabled=false; }
+}
+document.getElementById('chat-send').onclick=sendChat;
+document.getElementById('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendChat(); } });
 </script>
 </body></html>

@@ -8,8 +8,10 @@ import threading
 import traceback
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
+import json
+import re
 import yaml
-from engine import config, pipeline, compiler
+from engine import config, pipeline, compiler, llm
 
 router = APIRouter()
 _jobs = {}
@@ -74,6 +76,75 @@ def spec_status(sid):
     if not s:
         raise HTTPException(404, "无此规范任务")
     return s
+
+
+# ---- 对齐助手（带上下文的对话；可按用户要求改规则）----
+def _parse_edits(reply):
+    m = re.search(r"```json\s*(\{.*?\})\s*```", reply or "", re.S)
+    if not m:
+        return []
+    try:
+        return json.loads(m.group(1)).get("edits", [])
+    except Exception:
+        return []
+
+
+def _strip_edits(reply):
+    return re.sub(r"```json\s*\{.*?\}\s*```", "", reply or "", flags=re.S).strip()
+
+
+def _apply_edit(obj, path, value):
+    keys = str(path).split(".")
+    cur = obj
+    for k in keys[:-1]:
+        if isinstance(cur, dict) and k in cur:
+            cur = cur[k]
+        else:
+            return False
+    if isinstance(cur, dict):
+        cur[keys[-1]] = value
+        return True
+    return False
+
+
+_CHAT_SYS_CTX = (
+    "你是 SmartDoc 的「规范对齐助手」。下面给你【当前抽取的模板 YAML】——这就是排版引擎实际会套用的规则。"
+    "用户会问问题、或要求调整规则。用中文简洁回答（说人话，少术语）。"
+    "若用户明确要求修改某条规则，在回答末尾附一段 ```json {\"edits\":[{\"path\":\"点分路径\",\"value\":值}]}```（系统会应用到模板并刷新）。"
+    "路径示例：body_paragraph.font.size / headings.level_1.size / page.margins_mm.left。不需要改就不要附 edits。\n\n【当前模板 YAML】\n"
+)
+_CHAT_SYS_PLAIN = (
+    "你是 SmartDoc 的助手。SmartDoc 把「内容已写好」的文档套上目标格式规范、输出合规 docx，内容一字不改。"
+    "帮用户了解：怎么上传新规范（规范条文 pdf 或已排好的样本 docx）、编译成模板、再排文章。用中文简洁回答。"
+)
+
+
+@router.post("/chat")
+async def chat(payload: dict):
+    tid = (payload or {}).get("tid")
+    messages = (payload or {}).get("messages", [])[-12:]   # 只带最近若干轮
+    tpl, ctx_yaml = None, ""
+    if tid:
+        p = config.TEMPLATES_DIR / f"{tid}.yaml"
+        if p.exists():
+            tpl = yaml.safe_load(p.read_text(encoding="utf-8"))
+            ctx_yaml = yaml.safe_dump(tpl, allow_unicode=True, sort_keys=False)[:8000]
+    sys = (_CHAT_SYS_CTX + ctx_yaml) if ctx_yaml else _CHAT_SYS_PLAIN
+    try:
+        reply = llm.chat([{"role": "system", "content": sys}] + messages, thinking=False, max_tokens=1500)
+    except Exception as e:
+        raise HTTPException(500, f"对话失败：{e}")
+    applied, summary = [], None
+    if tpl is not None:
+        for e in _parse_edits(reply):
+            if isinstance(e, dict) and "path" in e and _apply_edit(tpl, e["path"], e.get("value")):
+                applied.append(e)
+        if applied:
+            tpl.setdefault("meta", {})["id"] = tid
+            (config.TEMPLATES_DIR / f"{tid}.yaml").write_text(
+                yaml.safe_dump(tpl, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            summary = compiler._summary(tpl)
+    return {"reply": _strip_edits(reply), "applied": applied, "summary": summary}
 
 
 def _run(jid, input_path, template_id, out_path):

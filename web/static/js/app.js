@@ -23,6 +23,11 @@ const API = {
     return r.json();
   },
   async spec(id) { return (await fetch('/api/specs/' + id)).json(); },
+  async chat(payload) {
+    const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || '对话失败');
+    return r.json();
+  },
   async job(id) { return (await fetch('/api/jobs/' + id)).json(); },
   async report(id) { return (await fetch('/api/jobs/' + id + '/report')).json(); },
   async preview(id) { return (await fetch('/api/jobs/' + id + '/preview')).json(); },
