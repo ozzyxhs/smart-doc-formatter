@@ -9,6 +9,14 @@ from engine import config
 app = FastAPI(title="smart-doc-formatter", version="0.1.0")
 
 
+@app.middleware("http")
+async def no_cache_static(request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/static"):
+        resp.headers["Cache-Control"] = "no-cache"  # 开发期：前端改动即时生效
+    return resp
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model": config.DEEPSEEK_MODEL}

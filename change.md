@@ -49,3 +49,11 @@ P0（本提交）：
 **验证**（fixtures/论文（三稿）.docx → 农大模板）：结构识别正确（题目/中英摘要/关键词/目录/标题1-3/40条文献/7表题/6图题）；内容守恒 ✅「一字没动」；成品 docx 真实合规——边距38/48/24/24、docGrid 38×38、页眉=题目+粗细双线、页脚 PAGE 域、eastAsia 分绑（宋体/TNR/黑体）、关键词前缀加粗保留、7 个三线表（上下1.5磅·无竖线）。报告核对全 pass（字数21601、文献40、外文13）。
 
 待 P2：封面精确字体（隶书一号等）、分节页码（封面不编/前置罗马/正文阿拉伯）、格式回炉闸/结构闸/视觉QA、警示态。
+
+## 2026-06-17 · P1 Web：API + 4 屏前端接真（已浏览器验证）
+
+- `app/main.py`(FastAPI+静态托管+/static no-cache) + `app/api.py`：`POST /api/jobs`(上传docx+模板)、`POST /api/jobs/demo`(内置样例)、`GET /api/jobs/{id}`(轮询·后台线程跑pipeline)、`/report`、`/preview`(成品文本预览)、`/download`(成品docx；blocked 时拒下)、`GET /api/templates`。
+- `web/` 4 屏（移植 Lumina Precision 原型，Tailwind CDN+共享 `tailwind-config.js`/`theme.css`，原生 JS）：工作台(上传/选规范/试用样例)→分析中(进度环·真轮询)→实时排版(成品预览+规则核对+「内容一字未动」)→排版结果(改动清单/待补项/核对清单+下载)。
+- **浏览器端到端验证**（preview, 端口8011）：试用样例→真 DeepSeek 识别→排版→下载 `已排版_论文（三稿）.docx`(77KB, 正确 docx MIME)；4 屏渲染与原型一致；内容守恒 badge 正常。
+- 运行：repo 根 `python -m uvicorn app.main:app --reload`（DeepSeek key 读 `.env`）。
+- 注：fixtures 与 `app/_jobs/`（含上传/成品，带论文内容）均 gitignore，不入公开库。

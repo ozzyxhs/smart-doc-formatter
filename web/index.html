@@ -1,2 +1,132 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>SmartDoc</title></head>
-<body><p>SmartDoc P0 scaffold OK — 工作台将在 P1 接入。<a href="/health">/health</a></p></body></html>
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SmartDoc · 工作台</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="/static/js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+</head>
+<body class="bg-surface text-on-surface font-body-base antialiased flex h-screen overflow-hidden">
+<!-- 侧栏 -->
+<nav class="bg-surface-container-low/90 backdrop-blur-xl h-screen w-64 fixed left-0 top-0 border-r border-outline-variant flex flex-col py-6 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-headline-md font-headline-md font-extrabold text-primary">SmartDoc</h1>
+<p class="text-label-caps font-label-caps text-secondary mt-1">智能合规排版</p>
+</div>
+<div class="px-6 mb-8">
+<button id="nav-new" class="w-full bg-primary text-on-primary font-body-bold text-body-bold py-3 rounded-lg shadow-sm hover:bg-primary-container hover:text-on-primary-container transition-all active:opacity-80 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">add</span> 新建排版</button>
+</div>
+<div class="flex-1 flex flex-col gap-1 overflow-y-auto">
+<a class="flex items-center gap-3 bg-primary text-on-primary rounded-lg px-4 py-3 mx-2" href="/"><span class="material-symbols-outlined fill">dashboard</span><span class="font-body-bold text-body-bold">工作台</span></a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="#"><span class="material-symbols-outlined">description</span><span>我的文档</span></a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="/library.html"><span class="material-symbols-outlined">sticky_note_2</span><span>规范库</span></a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="#"><span class="material-symbols-outlined">assessment</span><span>报告</span></a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="#"><span class="material-symbols-outlined">settings</span><span>设置</span></a>
+</div>
+<div class="mt-auto flex flex-col gap-1 pt-4 border-t border-outline-variant">
+<div class="px-6 mt-2 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-body-bold">A</div>
+<div class="flex flex-col"><span class="font-body-bold text-body-bold text-on-surface">学术写作者</span><span class="font-label-caps text-label-caps text-secondary">Pro Plan</span></div>
+</div>
+</div>
+</nav>
+<!-- 主区 -->
+<main class="ml-64 flex-1 flex flex-col lg:flex-row h-full bg-background overflow-hidden">
+<div class="flex-1 flex flex-col p-container-padding-xl overflow-y-auto w-full lg:w-3/5 border-r border-outline-variant">
+<div class="mb-8"><h2 class="text-display-lg font-display-lg text-on-surface mb-2">欢迎回来。</h2>
+<p class="text-body-base text-secondary">把写好的稿子，套成目标规范的合规成品。</p></div>
+<!-- 上传区 -->
+<div id="drop" class="bg-surface-container-lowest border-2 border-dashed border-primary/50 hover:border-primary hover:bg-primary-container/5 transition-colors rounded-xl p-12 flex flex-col items-center justify-center text-center cursor-pointer mb-4 relative group">
+<div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">upload_file</span></div>
+<h3 class="text-headline-md font-headline-md text-on-surface mb-2">拖入 或 选择文档</h3>
+<p class="text-body-base text-secondary mb-6 max-w-md">上传你的 <b>.docx</b> 草稿，引擎会自动识别结构并套上所选规范。<br><span class="text-label-caps">（P1 先支持 docx）</span></p>
+<button id="browse" class="bg-surface border border-outline-variant text-on-surface font-body-bold text-body-bold py-2 px-6 rounded-lg hover:bg-surface-variant transition-colors">选择文件</button>
+<input id="file" type="file" accept=".docx" class="hidden">
+</div>
+<div id="picked" class="mb-3 text-body-base text-secondary">当前规范：<b id="picked-name" class="text-on-surface">加载中…</b>　<span class="text-label-caps">（在右侧选择切换）</span></div>
+<div class="mb-8"><button id="try-sample" class="text-primary font-body-bold text-body-base hover:underline flex items-center gap-1"><span class="material-symbols-outlined text-base">science</span>试用样例（论文三稿 → 东北农大规范）</button></div>
+<div id="err" class="hidden mb-6 p-4 rounded-lg bg-error-container text-on-error-container text-body-base"></div>
+<!-- 最近（P1 占位静态示例） -->
+<div>
+<h3 class="text-headline-md font-headline-md text-on-surface mb-4">最近项目</h3>
+<div class="flex flex-col gap-4">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex items-center justify-between opacity-90">
+<div class="flex items-center gap-4"><div class="w-12 h-12 bg-surface-container-low rounded-lg flex items-center justify-center text-secondary border border-outline-variant"><span class="material-symbols-outlined">description</span></div>
+<div><h4 class="text-body-bold font-body-bold text-on-surface">论文（三稿）.docx</h4><p class="text-label-caps text-secondary mt-1">东北农业大学本科论文 · 样例</p></div></div>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-label-caps font-label-caps bg-surface-variant text-on-surface-variant border border-outline-variant">待排</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 右栏：规范快选 -->
+<div class="hidden lg:flex w-2/5 bg-surface-container-low flex-col h-full border-l border-outline-variant">
+<div class="p-container-padding-xl h-full flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-headline-md font-headline-md text-on-surface">选择目标规范</h3>
+<a href="/library.html" class="text-primary font-body-bold text-body-bold hover:underline text-sm">查看全部</a></div>
+<div id="tpl-list" class="grid grid-cols-1 gap-4 overflow-y-auto pr-2 pb-8"></div>
+</div>
+</div>
+</main>
+<script src="/static/js/app.js?v=p1"></script>
+<script>
+let templates = [], selectedId = null;
+const tplList = document.getElementById('tpl-list');
+const pickedName = document.getElementById('picked-name');
+
+function renderTemplates() {
+  tplList.innerHTML = templates.map(t => `
+    <div data-id="${t.id}" class="tpl-card group bg-surface-container-lowest border ${t.id===selectedId?'border-primary ring-1 ring-primary':'border-outline-variant'} rounded-xl overflow-hidden hover:border-primary hover:shadow-sm transition-all cursor-pointer flex flex-col">
+      <div class="h-20 bg-surface-variant flex items-center justify-center relative overflow-hidden">
+        <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg,#b32a03 0,#b32a03 1px,transparent 1px,transparent 10px);"></div>
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant z-10">school</span>
+      </div>
+      <div class="p-4 flex flex-col gap-1">
+        <h4 class="text-body-bold font-body-bold text-on-surface group-hover:text-primary transition-colors">${esc(t.name)}</h4>
+        <p class="text-code-mono font-code-mono text-secondary text-xs truncate">${esc(t.institution||'')} · v${esc(t.spec_version||'')}</p>
+      </div>
+    </div>`).join('');
+  tplList.querySelectorAll('.tpl-card').forEach(el =>
+    el.onclick = () => { selectedId = el.dataset.id; syncPicked(); renderTemplates(); });
+}
+function syncPicked() {
+  const t = templates.find(x => x.id === selectedId);
+  pickedName.textContent = t ? t.name : '（无）';
+}
+async function init() {
+  try {
+    templates = await API.templates();
+    selectedId = templates[0]?.id || null;
+    syncPicked(); renderTemplates();
+  } catch (e) { pickedName.textContent = '规范加载失败'; }
+}
+const fileInput = document.getElementById('file');
+const errBox = document.getElementById('err');
+function showErr(m){ errBox.textContent = m; errBox.classList.remove('hidden'); }
+async function upload(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.docx')) return showErr('目前只支持 .docx 文件');
+  if (!selectedId) return showErr('请先在右侧选择目标规范');
+  try {
+    const { job_id } = await API.createJob(file, selectedId);
+    location.href = '/analyzing.html?job=' + job_id;
+  } catch (e) { showErr(e.message || '上传失败'); }
+}
+document.getElementById('browse').onclick = (e)=>{ e.stopPropagation(); fileInput.click(); };
+document.getElementById('drop').onclick = ()=> fileInput.click();
+document.getElementById('nav-new').onclick = ()=> fileInput.click();
+fileInput.onchange = ()=> upload(fileInput.files[0]);
+document.getElementById('try-sample').onclick = async (e)=>{ e.stopPropagation();
+  try { const { job_id } = await API.demoJob(); location.href = '/analyzing.html?job='+job_id; }
+  catch(err){ showErr(err.message || '样例不可用'); } };
+const drop = document.getElementById('drop');
+;['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('bg-primary-container/10');}));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('bg-primary-container/10');}));
+drop.addEventListener('drop', e=> upload(e.dataTransfer.files[0]));
+init();
+</script>
+</body></html>

@@ -1,0 +1,37 @@
+/* Lumina Precision 共用样式：玻璃面板 / 图标 / 动效 / 文档预览纸张 */
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.material-symbols-outlined.fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid #e1e3e4; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.pulse-ring { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 95, 56, 0.7); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 20px rgba(255, 95, 56, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 95, 56, 0); }
+}
+.shimmer-text {
+  background: linear-gradient(90deg, #191c1d 0%, #5c5f62 50%, #191c1d 100%);
+  background-size: 200% auto; color: transparent;
+  -webkit-background-clip: text; background-clip: text;
+  animation: shimmer 2s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% center; } }
+
+/* 文档预览：仿一张 A4 纸 */
+.paper {
+  background: #fff; border: 1px solid #e1e3e4; box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  padding: 48px 56px; max-width: 720px; margin: 0 auto; line-height: 1.7;
+}
+.paper .p-title { text-align:center; font-weight:800; font-size:20px; margin: 8px 0 16px; }
+.paper .p-h1 { font-weight:700; font-size:17px; margin:18px 0 8px; }
+.paper .p-h2 { font-weight:700; font-size:15px; margin:14px 0 6px; }
+.paper .p-h3 { font-weight:700; font-size:14px; margin:12px 0 6px; }
+.paper .p-body { font-size:13.5px; text-indent: 2em; color:#222; margin:4px 0; }
+.paper .p-table { font-size:12px; color:#444; border-top:2px solid #222; border-bottom:2px solid #222; margin:10px 0; width:100%; }
+.paper .p-table td { padding:4px 8px; }
+.paper .p-table tr:first-child td { border-bottom:1px solid #222; }

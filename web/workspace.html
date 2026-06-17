@@ -1,0 +1,83 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SmartDoc · 实时排版</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="/static/js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased flex flex-col h-screen overflow-hidden">
+<header class="bg-white/75 backdrop-blur-md border-b border-surface-variant sticky top-0 z-50 flex items-center justify-between px-6 py-3">
+<div class="flex items-center gap-3">
+<h1 class="font-headline-md text-headline-md text-primary font-extrabold">SmartDoc</h1>
+<span class="text-secondary">/</span><span class="font-body-bold">实时排版</span></div>
+<div class="flex items-center gap-2 text-label-caps text-success bg-success/10 px-3 py-1.5 rounded-full"><span class="material-symbols-outlined text-sm">verified</span><span id="cc-badge">内容核对中…</span></div>
+</header>
+<main class="flex-1 flex overflow-hidden">
+<!-- 左：文档预览 -->
+<div class="flex-1 overflow-y-auto bg-surface-container p-8">
+<div class="paper" id="paper"><p class="text-secondary text-center">加载预览…</p></div>
+</div>
+<!-- 右：排版规则 / 核对 -->
+<div class="w-[40%] max-w-md border-l border-outline-variant bg-surface-container-lowest flex flex-col">
+<div class="p-6 border-b border-surface-variant">
+<h2 class="text-headline-md font-headline-md">排版规则</h2>
+<p class="text-secondary text-body-base mt-1" id="tpl-name">目标规范</p>
+</div>
+<div id="rules" class="flex-1 overflow-y-auto p-6 space-y-3"></div>
+<div class="p-6 border-t border-surface-variant">
+<button id="finish" class="w-full bg-primary text-on-primary font-body-bold py-4 rounded-lg hover:bg-on-primary-container transition-colors flex items-center justify-center gap-2 shadow-sm">
+完成并查看报告 <span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+</div>
+</main>
+<script src="/static/js/app.js?v=p1"></script>
+<script>
+const jid = qs('job');
+if (!jid) location.href='/';
+document.getElementById('finish').onclick = ()=> location.href='/result.html?job='+jid;
+
+function renderPaper(items, title) {
+  const paper = document.getElementById('paper');
+  let html = '';
+  for (const it of items) {
+    if (it.kind === 'table') {
+      html += '<table class="p-table"><tbody>' + it.rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('') + '</tbody></table>';
+    } else {
+      const cls = { title:'p-title', h1:'p-h1', h2:'p-h2', h3:'p-h3', body:'p-body' }[it.kind] || 'p-body';
+      html += `<div class="${cls}">${esc(it.text)}</div>`;
+    }
+  }
+  paper.innerHTML = html || '<p class="text-secondary">（无预览）</p>';
+}
+const RES_ICON = { pass:['check_circle','text-success'], warn:['error','text-warning'], fail:['cancel','text-error'] };
+function renderRules(rep) {
+  document.getElementById('tpl-name').textContent = rep.template_name || '目标规范';
+  const cc = rep.content;
+  const badge = document.getElementById('cc-badge');
+  if (cc.ok) { badge.textContent='内容一字未动'; }
+  else { badge.textContent='内容对不上'; badge.parentElement.className='flex items-center gap-2 text-label-caps text-error bg-error/10 px-3 py-1.5 rounded-full'; }
+  const wrap = document.getElementById('rules');
+  wrap.innerHTML = rep.checks.map(c => {
+    const [ic, color] = RES_ICON[c.result] || RES_ICON.pass;
+    return `<div class="border border-outline-variant rounded-lg p-4 ${c.result==='warn'?'border-l-4 border-l-warning':''}">
+      <div class="flex items-center justify-between"><span class="font-body-bold">${esc(c.item)}</span>
+      <span class="material-symbols-outlined ${color} fill">${ic}</span></div>
+      <p class="text-secondary text-sm mt-1 font-code-mono">期望 ${esc(c.expected)} → ${esc(c.actual)}</p></div>`;
+  }).join('');
+}
+async function init() {
+  let j;
+  try { j = await API.job(jid); } catch(e){ return; }
+  if (j.status === 'blocked') return location.href='/result.html?job='+jid;
+  try {
+    const [prev, rep] = await Promise.all([API.preview(jid), API.report(jid)]);
+    renderPaper(prev.items, prev.title);
+    renderRules(rep);
+  } catch(e){ document.getElementById('paper').innerHTML='<p class="text-error">预览加载失败</p>'; }
+}
+init();
+</script>
+</body></html>

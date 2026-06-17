@@ -1,0 +1,68 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SmartDoc · 处理中</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="/static/js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased flex h-screen overflow-hidden">
+<main class="flex-1 flex items-center justify-center relative w-full h-full">
+<div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+<div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary-container rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-tertiary-container rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+</div>
+<div class="z-10 w-full max-w-lg px-container-padding-lg">
+<div class="glass-panel rounded-xl p-10 flex flex-col items-center text-center relative overflow-hidden">
+<div class="mb-12">
+<h1 class="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">SmartDoc</h1>
+<p class="font-label-caps text-label-caps text-secondary mt-1 uppercase tracking-wider">Precision Formatting Engine</p>
+</div>
+<div class="relative mb-10 w-32 h-32 flex items-center justify-center">
+<svg class="w-full h-full absolute inset-0 text-surface-container-high" viewBox="0 0 100 100"><circle cx="50" cy="50" fill="none" r="45" stroke="currentColor" stroke-width="4"></circle></svg>
+<svg class="w-full h-full absolute inset-0 text-primary-container transform -rotate-90" viewBox="0 0 100 100"><circle class="transition-all duration-700 ease-out" cx="50" cy="50" fill="none" id="ring" r="45" stroke="currentColor" stroke-dasharray="283" stroke-dashoffset="283" stroke-width="4"></circle></svg>
+<div class="relative z-10 w-16 h-16 bg-surface rounded-full flex items-center justify-center shadow-sm pulse-ring">
+<span class="material-symbols-outlined text-primary-container text-3xl fill">document_scanner</span></div>
+</div>
+<div class="h-20 flex flex-col items-center justify-center">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2 shimmer-text" id="headline">分析结构</h2>
+<p class="font-body-base text-body-base text-secondary" id="detail">正在处理…</p>
+</div>
+<div class="mt-8 w-full border-t border-surface-variant pt-6">
+<div class="flex items-center justify-between text-left w-full p-4 bg-surface-container-low rounded-lg border border-surface-variant">
+<div class="flex items-center gap-3"><span class="material-symbols-outlined text-tertiary">description</span>
+<div><p class="font-body-bold text-body-bold text-on-surface truncate w-56" id="fname">文档</p>
+<p class="font-code-mono text-code-mono text-secondary" id="sub">排版任务</p></div></div>
+<span class="font-body-base text-body-base text-secondary" id="pct">0%</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script src="/static/js/app.js?v=p1"></script>
+<script>
+const jid = qs('job');
+const ring = document.getElementById('ring');
+const headline = document.getElementById('headline');
+const detail = document.getElementById('detail');
+const pctEl = document.getElementById('pct');
+const C = 283;
+function setPct(p){ ring.style.strokeDashoffset = C*(1-p/100); pctEl.textContent = Math.round(p)+'%'; }
+if (!jid) { location.href='/'; }
+async function poll() {
+  let j;
+  try { j = await API.job(jid); } catch(e){ detail.textContent='连接失败，重试…'; return setTimeout(poll, 1500); }
+  document.getElementById('fname').textContent = j.filename || '文档';
+  const st = STAGE_TEXT[j.stage] || STAGE_TEXT[j.status] || {h:j.stage||'处理中', d:''};
+  headline.textContent = st.h; detail.textContent = st.d;
+  setPct(j.pct || 0);
+  if (j.status === 'done') { headline.classList.remove('shimmer-text'); headline.classList.add('text-primary'); setPct(100); detail.textContent='正在打开结果…'; return setTimeout(()=>location.href='/workspace.html?job='+jid, 600); }
+  if (j.status === 'blocked') { return setTimeout(()=>location.href='/result.html?job='+jid, 400); }
+  if (j.status === 'error') { headline.textContent='出错了'; headline.classList.remove('shimmer-text'); headline.classList.add('text-error'); detail.textContent = j.error || '处理失败'; return; }
+  setTimeout(poll, 1200);
+}
+poll();
+</script>
+</body></html>

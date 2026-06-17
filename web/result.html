@@ -1,0 +1,124 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SmartDoc · 排版结果</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="/static/js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased min-h-screen">
+<main class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-10 flex flex-col md:flex-row gap-8">
+<aside class="hidden md:flex flex-col w-60 shrink-0">
+<div class="flex flex-col h-full py-6 bg-surface-container-low/90 backdrop-blur-xl border border-outline-variant rounded-xl sticky top-8">
+<div class="px-6 mb-8"><h2 class="text-headline-md font-headline-md font-extrabold text-primary">SmartDoc</h2><p class="text-secondary font-label-caps uppercase mt-1">智能合规排版</p></div>
+<a href="/" class="mx-6 mb-6 bg-primary text-on-primary font-body-bold py-3 rounded-lg text-center hover:bg-on-primary-container transition-all">新建排版</a>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="/"><span class="material-symbols-outlined">dashboard</span>工作台</a>
+<a class="flex items-center gap-3 bg-primary text-on-primary rounded-lg px-4 py-3 mx-2" href="#"><span class="material-symbols-outlined fill">assessment</span>结果报告</a>
+<a class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 hover:bg-surface-variant/50 rounded-lg" href="/library.html"><span class="material-symbols-outlined">sticky_note_2</span>规范库</a>
+</nav>
+</div>
+</aside>
+<div class="flex-1 space-y-6">
+<!-- 状态横幅 -->
+<section id="banner" class="glass-panel rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-l-4 border-l-primary">
+<div class="flex items-center gap-4">
+<div id="banner-icon-wrap" class="h-12 w-12 rounded-full bg-primary-fixed flex items-center justify-center"><span id="banner-icon" class="material-symbols-outlined text-on-primary-fixed text-3xl fill">check_circle</span></div>
+<div><h1 id="banner-title" class="text-headline-md font-headline-md text-on-surface">排版完成</h1>
+<p id="banner-sub" class="text-secondary font-body-base mt-1">正在加载…</p></div>
+</div>
+<div class="flex flex-col sm:flex-row gap-3">
+<button id="dl-report" class="px-5 py-3 rounded-lg border border-outline text-on-surface font-body-bold hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2"><span class="material-symbols-outlined">download</span>下载报告</button>
+<a id="dl-doc" href="#" class="px-5 py-3 rounded-lg bg-primary text-on-primary font-body-bold hover:bg-on-primary-container transition-colors flex items-center justify-center gap-2 shadow-sm"><span class="material-symbols-outlined">description</span>下载成品</a>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- 改动清单 -->
+<section class="glass-panel rounded-xl p-6">
+<div class="flex items-center justify-between mb-6 pb-4 border-b border-surface-variant">
+<h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">edit_document</span>改动清单</h2>
+<span id="changes-count" class="bg-surface-container text-on-surface font-label-caps px-3 py-1 rounded-full">—</span></div>
+<ul id="changes" class="space-y-4"></ul>
+</section>
+<!-- 待补项 -->
+<section class="glass-panel rounded-xl p-6 border-l-4 border-l-outline">
+<div class="flex items-center justify-between mb-6 pb-4 border-b border-surface-variant">
+<h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-outline">warning</span>待补项</h2>
+<span id="pending-count" class="bg-error-container text-on-error-container font-label-caps px-3 py-1 rounded-full">—</span></div>
+<ul id="pending" class="space-y-4"></ul>
+</section>
+</div>
+<!-- 核对表格 -->
+<section class="glass-panel rounded-xl p-6 overflow-hidden">
+<div class="mb-6"><h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">fact_check</span>核对清单</h2></div>
+<div class="overflow-x-auto"><table class="w-full text-left border-collapse">
+<thead><tr class="border-b-2 border-surface-variant text-secondary font-label-caps uppercase tracking-wider">
+<th class="pb-3 pr-4">要求</th><th class="pb-3 px-4">期望值</th><th class="pb-3 px-4">实际值</th><th class="pb-3 pl-4 text-center">结果</th></tr></thead>
+<tbody id="checks" class="font-body-base"></tbody>
+</table></div>
+</section>
+</div>
+</main>
+<script src="/static/js/app.js?v=p1"></script>
+<script>
+const jid = qs('job');
+if (!jid) location.href='/';
+const RES = { pass:['check_circle','text-primary'], warn:['error','text-warning'], fail:['cancel','text-error'] };
+let REPORT = null;
+
+function renderBlockedBanner(rep) {
+  document.getElementById('banner').className = 'glass-panel rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-l-4 border-l-error';
+  document.getElementById('banner-icon-wrap').className = 'h-12 w-12 rounded-full bg-error-container flex items-center justify-center';
+  document.getElementById('banner-icon').textContent = 'report';
+  document.getElementById('banner-icon').className = 'material-symbols-outlined text-on-error-container text-3xl fill';
+  document.getElementById('banner-title').textContent = '已拦下：内容对不上';
+  document.getElementById('banner-sub').textContent = rep.content.msg;
+  const dl = document.getElementById('dl-doc');
+  dl.className = 'px-5 py-3 rounded-lg bg-surface-container text-secondary font-body-bold flex items-center gap-2 cursor-not-allowed';
+  dl.removeAttribute('href'); dl.onclick = e=>e.preventDefault();
+}
+function render(rep) {
+  REPORT = rep;
+  if (rep.status === 'blocked') renderBlockedBanner(rep);
+  else {
+    document.getElementById('banner-sub').textContent = rep.summary;
+    document.getElementById('dl-doc').href = API.downloadUrl(jid);
+  }
+  // 改动清单
+  document.getElementById('changes-count').textContent = rep.changes.length + ' 项自动调整';
+  document.getElementById('changes').innerHTML = rep.changes.map(c=>`
+    <li class="flex gap-4 items-start"><span class="material-symbols-outlined text-secondary text-sm mt-1">done</span>
+    <div><p class="font-body-bold text-on-surface">${esc(c.what)}</p><p class="text-secondary text-sm">${esc(c.detail)}</p></div></li>`).join('');
+  // 待补项
+  const pc = document.getElementById('pending-count');
+  if (rep.pending.length === 0) { pc.textContent='无'; pc.className='bg-success/15 text-success font-label-caps px-3 py-1 rounded-full';
+    document.getElementById('pending').innerHTML = '<li class="text-secondary text-body-base flex items-center gap-2"><span class="material-symbols-outlined text-success">check_circle</span>都达标了，没有需要你补的。</li>'; }
+  else { pc.textContent = rep.pending.length + ' 项需你看看';
+    document.getElementById('pending').innerHTML = rep.pending.map(p=>`
+    <li class="flex gap-4 items-start p-3 bg-surface-container-low rounded-lg border border-surface-variant"><span class="material-symbols-outlined text-warning text-sm mt-1">info</span>
+    <div><p class="font-body-bold text-on-surface">${esc(p.title)}</p><p class="text-secondary text-sm mt-1">${esc(p.detail)}</p></div></li>`).join(''); }
+  // 核对清单
+  document.getElementById('checks').innerHTML = rep.checks.map(c=>{
+    const [ic,color]=RES[c.result]||RES.pass;
+    return `<tr class="border-b border-surface-variant hover:bg-surface-container-low transition-colors">
+    <td class="py-4 pr-4 font-body-bold">${esc(c.item)}</td>
+    <td class="py-4 px-4 text-secondary font-code-mono">${esc(c.expected)}</td>
+    <td class="py-4 px-4 font-code-mono">${esc(c.actual)}</td>
+    <td class="py-4 pl-4 text-center"><span class="material-symbols-outlined ${color} fill">${ic}</span></td></tr>`;
+  }).join('');
+}
+document.getElementById('dl-report').onclick = ()=>{
+  if (!REPORT) return;
+  let txt = `合规报告\n${REPORT.summary}\n\n【内容守恒】${REPORT.content.msg}\n\n【改动清单】\n`;
+  REPORT.changes.forEach(c=> txt += ` - ${c.what}：${c.detail}\n`);
+  txt += `\n【核对清单】\n`;
+  REPORT.checks.forEach(c=> txt += ` - ${c.item}：期望 ${c.expected} / 实际 ${c.actual} [${c.result}]\n`);
+  if (REPORT.pending.length){ txt += `\n【待补项】\n`; REPORT.pending.forEach(p=> txt += ` - ${p.title}：${p.detail}\n`); }
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '合规报告.txt'; a.click();
+};
+(async ()=>{ try { render(await API.report(jid)); } catch(e){ document.getElementById('banner-sub').textContent='报告加载失败'; } })();
+</script>
+</body></html>
