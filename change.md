@@ -41,3 +41,11 @@ P0（本提交）：
 - `农大.json` → `templates/neau-bachelor-thesis-2025.yaml`（手工映射 schema：页面/字号表/页眉双线/5级标题/三线表/GB7714引用…）。
 - DeepSeek key **已验真连通**（`deepseek-chat`→deepseek-v4-flash，回 pong）。FastAPI `/health` + 静态托管 TestClient 验过 200。
 - **隐私**：仓库 PUBLIC，`fixtures/` 含真实学生论文（马晓倩）+ 真实论文，**不入库**（`.gitignore: fixtures/* !README.md`），仅留本地；`fixtures/README.md` 记录清单与角色。
+
+## 2026-06-17 · P1 引擎：农大运行期主链跑通（已端到端验证）
+
+新增 `engine/`：`ingest`(docx→保序区块流) → `classify`(LLM缝①·DeepSeek结构识别,按idx标签·永不返回文本) → `format_docx`(确定性重建,文本逐run拷贝→内容守恒by construction) → `gates/content_gate`(内容守恒闸,残差比对,正文变动→🔴硬阻断) → `report`(大白话报告) → `pipeline`(固定控制流编排)。oxml 补丁集中在 `docx_utils`。`scripts/run_local.py`+`inspect_docx.py` 本地 CLI。
+
+**验证**（fixtures/论文（三稿）.docx → 农大模板）：结构识别正确（题目/中英摘要/关键词/目录/标题1-3/40条文献/7表题/6图题）；内容守恒 ✅「一字没动」；成品 docx 真实合规——边距38/48/24/24、docGrid 38×38、页眉=题目+粗细双线、页脚 PAGE 域、eastAsia 分绑（宋体/TNR/黑体）、关键词前缀加粗保留、7 个三线表（上下1.5磅·无竖线）。报告核对全 pass（字数21601、文献40、外文13）。
+
+待 P2：封面精确字体（隶书一号等）、分节页码（封面不编/前置罗马/正文阿拉伯）、格式回炉闸/结构闸/视觉QA、警示态。
