@@ -1,0 +1,131 @@
+# 东北农业大学 本科毕业论文（设计）撰写规范 2025
+# 由 fixtures/农大.json 编译（手工映射，P0）。引擎只读本 YAML；换规范=换 YAML，代码不动。
+# 字号用中文字号名，引擎按 size_table 解析成 pt。长度单位 mm/pt/字符。
+
+meta:
+  id: neau-bachelor-thesis-2025
+  name: 东北农业大学 本科毕业论文（设计）
+  institution: 东北农业大学
+  degree_level: bachelor          # bachelor | master | doctor
+  doc_type: thesis                # thesis | design
+  spec_version: "2025.03"
+  source: 东北农业大学《本科毕业论文（设计）撰写规范》2025年3月修订
+  standards: [GB/T7713.1-2006, GB/T7714-2015, GB3100-3102-1993, CY/T121-2015]
+  min_word_count: { thesis: 8000, design: 5000 }
+
+# 中文字号 -> 磅（pt）
+size_table:
+  初号: 42
+  小初: 36
+  一号: 26
+  小一: 24
+  二号: 22
+  小二: 18
+  三号: 16
+  小三: 15
+  四号: 14
+  小四: 12
+  五号: 10.5
+  小五: 9
+  六号: 7.5
+  小六: 6.5
+
+page:
+  size: A4                          # 210 x 297 mm
+  width_mm: 210
+  height_mm: 297
+  margins_mm: { top: 38, bottom: 48, left: 24, right: 24 }
+  grid: { type: lines_and_chars, lines_per_page: 38, chars_per_line: 38 }
+
+# 中文 eastAsia + 西文 latin 分开绑定 —— 中文 Word 排版核心坑，钉死
+fonts:
+  default_cn: 宋体
+  default_latin: Times New Roman    # 数字与字母统一 TNR
+  heading_cn: 黑体
+
+header:
+  applicable: 除封面及扉页外各页
+  margin_mm: 28
+  content: thesis_title             # 页眉文字 = 论文题目
+  font: { cn: 宋体, latin: Times New Roman, size: 小五, align: center }
+  border_below:                     # 粗细双线，粗线在上（oxml 补丁）
+    style: double
+    upper_pt: 3
+    lower: hairline
+
+footer:
+  margin_mm: 38
+  font: { cn: 宋体, latin: Times New Roman, size: 小五, align: center }
+  page_number: { format: "- n -" }
+
+pagination:
+  cover_titlepage: none             # 封面、扉页不编页码
+  frontmatter: roman                # 摘要、目录用罗马数字
+  body: arabic                      # 正文起阿拉伯数字，分节重启
+
+# 正文段落与各级标题
+body_paragraph:
+  font: { cn: 宋体, latin: Times New Roman, size: 五号 }
+  first_line_indent_chars: 2
+  align: justify                    # 两端对齐
+  line_spacing: single
+
+headings:
+  level_1: { numbering: "1",       name: 章, font_cn: 黑体, latin: Times New Roman, size: 小二, bold: true,  first_line_indent_chars: 0, space_before_lines: 0.5, space_after_lines: 0.5, line_spacing: single, page_break_before: true, align: center }
+  level_2: { numbering: "1.1",     name: 节, font_cn: 黑体, latin: Times New Roman, size: 小三, bold: true,  first_line_indent_chars: 1, line_spacing: single }
+  level_3: { numbering: "1.1.1",   name: 条, font_cn: 黑体, latin: Times New Roman, size: 四号, bold: true,  first_line_indent_chars: 2, line_spacing: single }
+  level_4: { numbering: "1.1.1.1", name: 款, font_cn: 黑体, latin: Times New Roman, size: 小四, bold: true,  first_line_indent_chars: 2, line_spacing: single }
+  level_5: { numbering: "(1)",     name: 项, note: "若节后无条可直接到款、项，编号与标题间空一格" }
+
+chinese_abstract:
+  title: { text: 摘要, font: 黑体, size: 小二, align: center }
+  body:  { font: 宋体, size: 五号, first_line_indent_chars: 2, line_spacing: single, word_count: "300-500字" }
+  keywords: { prefix: "关键词：", prefix_bold: true, position: 摘要正文下空一行顶格, separator: "；", count: "3-5", end_punctuation: none }
+
+english_abstract:
+  title: { text: Abstract, font: Times New Roman, size: 小二, align: center }
+  body:  { font: Times New Roman, size: 五号, first_line_indent_chars: 2, line_spacing: single }
+  keywords: { prefix: "Key words：", prefix_bold: true, font: Times New Roman, size: 五号, separator: "；", end_punctuation: none }
+
+table_of_contents:
+  levels: 3
+  numbering_format: "1……, 1.1……, 1.1.1……"
+  level_1: { font: 黑体, size: 五号, bold: true, indent_chars: 0 }
+  level_2: { font: 宋体, size: 五号, indent_chars: 1 }
+  level_3: { font: 宋体, size: 五号, indent_chars: 2 }
+  number_letter_font: Times New Roman
+  line_spacing: single
+
+tables:                              # 开放式三线格（oxml 补丁）
+  style: three_line
+  border: { top_bottom_pt: 1.5, middle_pt: 0.5 }
+  numbering: { format: "表3.1", sep: 表号与表题之间空一个字符 }
+  title:   { position: above_center, font: 宋体, size: 五号, latin: Times New Roman, no_punctuation: true }
+  content: { font: 宋体, size: 小五, latin: Times New Roman, align: center }
+  notes:   { font: 宋体, size: 小五, indent_chars: 1, position: below }
+
+figures:
+  numbering: { format: "图3-1", sep: 图号和图题之间空一个字符 }
+  title:   { position: below_center, font: 宋体, size: 五号, latin: Times New Roman }
+  content_size: 小五
+  page_rule: 插图与其图号图题为一整体，不得拆开排写于两页
+
+citation:
+  standard: GB/T7714-2015
+  style: 顺序编码制
+  format: superscript_bracket        # 上标方括号阿拉伯数字，置所引内容末句右上角
+  examples: { single: "[1]", multiple: "[1,3,5]", continuous: "[6-8]" }
+  restriction: 不得将引用文献标示置于各级标题处
+
+references:
+  title: { text: "参 考 文 献", same_as: heading_1, char_spacing: 2 }
+  body:  { same_as: body_paragraph, numbering: { format: "[1]", align: left } }
+  requirements: { thesis: { min_total: 20, min_foreign: 4 }, design: { min_total: 10 } }
+
+acknowledgements:
+  title: { text: "致 谢", same_as: heading_1, char_spacing: 2 }
+  body:  { same_as: body_paragraph }
+
+appendix:
+  numbering: { style: "大写正体字母 A, B, C", single_still_numbered: true }
+  internal: { figure: "图A.1", table: "表B.1", formula: "式(C-1)", reference: "文献[D.1]" }

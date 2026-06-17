@@ -1,0 +1,21 @@
+# --- web ---
+fastapi
+uvicorn[standard]
+python-multipart        # file uploads
+
+# --- engine: docx read/write + oxml patches ---
+python-docx
+lxml
+
+# --- LLM (DeepSeek via OpenAI-compatible client) ---
+openai
+python-dotenv
+
+# --- template library ---
+pyyaml
+
+# --- spec parsing (build-time compiler, P3; 农大 PDF) ---
+pypdf
+
+# Windows-only (already present): pywin32 for Word COM (.doc->.docx, visual QA render)
+# docx2pdf  # optional, visual QA (P2)

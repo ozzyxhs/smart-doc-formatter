@@ -1,0 +1,27 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# local scratch / throwaway prototype (not part of the build)
+prototype/
+
+# fixtures hold real student theses (PII) + a school's spec — repo is PUBLIC, keep local only
+fixtures/*
+!fixtures/README.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# runtime job artifacts
+app/_jobs/
+*.converted.docx
+_*.tmp

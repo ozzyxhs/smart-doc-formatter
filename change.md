@@ -30,3 +30,14 @@ grill 继续，两条新硬需求落地（**纠正**了同日上一轮 #5 选项
 2. **界面 / 报告文案全大白话**：只说「对你意味着什么」，不用内部术语（阻断 / 指纹 / 报备 / 核验 / 合规核对…）。落点：PRD 界面决策 + issue #16 / #22。
 
 > 「审阅一屏」从"人工闸"降级为**只读报告**（用户可看、不被要求）。前后端原型（仓库外、另线 throwaway）本轮按用户要求丢开，不入库。
+
+## 2026-06-17 · 开建网页全栈版（P0 脚手架）
+
+用户拍板：把 docs 锁定的设计做成**真能跑的网页全栈应用**（7 屏全接真 + 运行期/建设期两轨），建在本仓库、推 main。详见 `PLAN.md`。本轮 = P0 + P1（用户已确认开工）。
+
+P0（本提交）：
+- 新增目录 `engine/`(config/llm) `app/`(FastAPI main) `web/`(静态壳) `templates/` `fixtures/`。
+- `requirements.txt` + `.env.example`（真 key 在 `.env`，gitignore）。
+- `农大.json` → `templates/neau-bachelor-thesis-2025.yaml`（手工映射 schema：页面/字号表/页眉双线/5级标题/三线表/GB7714引用…）。
+- DeepSeek key **已验真连通**（`deepseek-chat`→deepseek-v4-flash，回 pong）。FastAPI `/health` + 静态托管 TestClient 验过 200。
+- **隐私**：仓库 PUBLIC，`fixtures/` 含真实学生论文（马晓倩）+ 真实论文，**不入库**（`.gitignore: fixtures/* !README.md`），仅留本地；`fixtures/README.md` 记录清单与角色。
