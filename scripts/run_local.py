@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from engine import config, pipeline  # noqa: E402
 from engine import ingest as ING, classify as CLS, format_docx as FMT, report as REP  # noqa: E402
+from engine import format_review as FR  # noqa: E402
 from engine.gates import content_gate as CG  # noqa: E402
 
 args = [a for a in sys.argv[1:] if a != "--fresh"]
@@ -39,3 +40,8 @@ print("题目:", fmt["title"][:50], "| 分节:", fmt.get("sections"))
 print("内容守恒:", rep["content"]["msg"])
 print("核对:", [(c["item"], c["result"]) for c in rep["checks"]])
 print("成品:", out, "大小:", out.stat().st_size if out.exists() else 0)
+
+fr = FR.review(template)
+print("\n格式复审(DeepSeek思考):", "ok=", fr.get("ok"), "| 偏差", len(fr.get("deviations", [])), "条", fr.get("error", ""))
+for d in fr.get("deviations", [])[:10]:
+    print(f"  - [{d.get('severity')}] {d.get('item')} | 规范:{d.get('spec')} | 引擎:{d.get('engine')}")

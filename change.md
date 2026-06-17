@@ -83,3 +83,10 @@ P0（本提交）：
 - **校名图**：`scripts/extract_logo.py` 从农大PDF提取校名标准字(486×121,~4:1)→ `templates/assets/neau-logo.png`(gitignore,不republish),封面行1插入 120×30mm。
 - **逐条对齐 2.3-2.6(渲染核对)**：2.3 封面=校名图+隶书一号+黑体二号+信息栏黑体小三首行缩进5字符+日期黑体小二,**一页**,无页眉无码;2.4 关键词顶格加粗;2.5 英文摘要**另起一页**(题目+Abstract同页);2.6 目录**另起页+三级缩进+页码右对齐+点引线**+一级加粗+罗马/阿拉伯。全局 Normal 段前段后0/单倍行距。内容守恒仍 ✅。
 - 待办：**LLM 格式复审**(拿规范逐条审"套出来对不对"→报告/回炉,用户要的第二件);新疆工程学院第二格式(P3 编译器)。
+
+## 2026-06-17 · LLM 格式复审 + 模型并发/运行指示
+
+- **LLM 格式复审(用户要的第二件)**：`engine/format_review.py`——DeepSeek v4-pro 思考模式拿【权威规范 农大.json】逐条审【引擎实际套用的 YAML】,列"规范要求、引擎缺/错"的偏差(item/spec/engine/severity)。doc 无关→按模板缓存。pipeline 加 review 步,报告含 `format_review`,`web/result.html` 新增"格式复审"区展示。**实测发现 8 处真偏差**(公式排版缺失[高]/英文题目行未落数据[高]/目录编号空格/封面空白行减少 等)——审计员真能挑出我漏的。
+- **模型**：结构识别曾试 flash 提速,但用户定"宁慢勿错用最强"→`DEEPSEEK_CLASSIFY_MODEL` 默认回 `deepseek-v4-pro`(想快可设 flash)。`classify` 批次改 `ThreadPoolExecutor` 并发(单批慢,并发压总耗时)。
+- **运行指示(用户要求)**：`analyzing.html` 加"运行中 · Ns"计时 + ping 点 + review 阶段文案,长步骤也明确没挂。
+- 已知小瑕：报告"页面规范化"打印了 dict 原文(待美化)。

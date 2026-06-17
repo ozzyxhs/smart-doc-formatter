@@ -8,6 +8,7 @@ from . import ingest as ING
 from . import classify as CLS
 from . import format_docx as FMT
 from . import report as REP
+from . import format_review as FR
 from .gates import content_gate as CG
 
 
@@ -38,6 +39,13 @@ def run(input_path, template_id, out_path, progress=None):
     gate = CG.check(src_seq, out_path)
 
     report = REP.build(blocks, labels, template, fmt, gate)
+
+    step("review", 95)              # LLM 格式复审（算力自检，按模板缓存）
+    try:
+        report["format_review"] = FR.review(template)
+    except Exception as e:
+        report["format_review"] = {"ok": None, "deviations": [], "error": str(e)}
+
     step("done", 100)
     return {
         "out_path": out_path,

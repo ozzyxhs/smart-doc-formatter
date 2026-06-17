@@ -26,9 +26,10 @@
 <div class="relative z-10 w-16 h-16 bg-surface rounded-full flex items-center justify-center shadow-sm pulse-ring">
 <span class="material-symbols-outlined text-primary-container text-3xl fill">document_scanner</span></div>
 </div>
-<div class="h-20 flex flex-col items-center justify-center">
+<div class="h-24 flex flex-col items-center justify-center">
 <h2 class="font-headline-md text-headline-md text-on-surface mb-2 shimmer-text" id="headline">分析结构</h2>
 <p class="font-body-base text-body-base text-secondary" id="detail">正在处理…</p>
+<p class="font-label-caps text-label-caps text-secondary mt-2 flex items-center gap-1.5" id="elapsed"><span class="w-1.5 h-1.5 rounded-full bg-primary-container inline-block animate-ping"></span>运行中 · 0s</p>
 </div>
 <div class="mt-8 w-full border-t border-surface-variant pt-6">
 <div class="flex items-center justify-between text-left w-full p-4 bg-surface-container-low rounded-lg border border-surface-variant">
@@ -50,6 +51,10 @@ const detail = document.getElementById('detail');
 const pctEl = document.getElementById('pct');
 const C = 283;
 function setPct(p){ ring.style.strokeDashoffset = C*(1-p/100); pctEl.textContent = Math.round(p)+'%'; }
+// 运行中计时（即使某步较慢、百分比不变，也明确显示没挂）
+const _t0 = Date.now();
+const _elapsed = document.getElementById('elapsed');
+const _tick = setInterval(()=>{ _elapsed.lastChild.textContent = '运行中 · ' + Math.round((Date.now()-_t0)/1000) + 's'; }, 1000);
 if (!jid) { location.href='/'; }
 async function poll() {
   let j;
@@ -58,9 +63,9 @@ async function poll() {
   const st = STAGE_TEXT[j.stage] || STAGE_TEXT[j.status] || {h:j.stage||'处理中', d:''};
   headline.textContent = st.h; detail.textContent = st.d;
   setPct(j.pct || 0);
-  if (j.status === 'done') { headline.classList.remove('shimmer-text'); headline.classList.add('text-primary'); setPct(100); detail.textContent='正在打开结果…'; return setTimeout(()=>location.href='/workspace.html?job='+jid, 600); }
-  if (j.status === 'blocked') { return setTimeout(()=>location.href='/result.html?job='+jid, 400); }
-  if (j.status === 'error') { headline.textContent='出错了'; headline.classList.remove('shimmer-text'); headline.classList.add('text-error'); detail.textContent = j.error || '处理失败'; return; }
+  if (j.status === 'done') { clearInterval(_tick); headline.classList.remove('shimmer-text'); headline.classList.add('text-primary'); setPct(100); detail.textContent='正在打开结果…'; return setTimeout(()=>location.href='/workspace.html?job='+jid, 600); }
+  if (j.status === 'blocked') { clearInterval(_tick); return setTimeout(()=>location.href='/result.html?job='+jid, 400); }
+  if (j.status === 'error') { clearInterval(_tick); headline.textContent='出错了'; headline.classList.remove('shimmer-text'); headline.classList.add('text-error'); detail.textContent = j.error || '处理失败'; _elapsed.style.display='none'; return; }
   setTimeout(poll, 1200);
 }
 poll();

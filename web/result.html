@@ -59,6 +59,13 @@
 <tbody id="checks" class="font-body-base"></tbody>
 </table></div>
 </section>
+<!-- 格式复审（DeepSeek 逐条核对规范） -->
+<section class="glass-panel rounded-xl p-6">
+<div class="flex items-center justify-between mb-6 pb-4 border-b border-surface-variant">
+<h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">policy</span>格式复审 · DeepSeek 逐条核对规范</h2>
+<span id="review-count" class="bg-surface-container text-on-surface font-label-caps px-3 py-1 rounded-full">—</span></div>
+<ul id="review" class="space-y-3"></ul>
+</section>
 </div>
 </main>
 <script src="/static/js/app.js?v=p1"></script>
@@ -108,6 +115,22 @@ function render(rep) {
     <td class="py-4 px-4 font-code-mono">${esc(c.actual)}</td>
     <td class="py-4 pl-4 text-center"><span class="material-symbols-outlined ${color} fill">${ic}</span></td></tr>`;
   }).join('');
+  // 格式复审（DeepSeek）
+  const fr = rep.format_review || { ok: null, deviations: [] };
+  const rc = document.getElementById('review-count');
+  const rv = document.getElementById('review');
+  const SEV = { high: ['text-error', '高'], mid: ['text-warning', '中'], low: ['text-secondary', '低'] };
+  if (fr.error) {
+    rc.textContent = '未复审';
+    rv.innerHTML = '<li class="text-secondary text-body-base">' + esc(fr.error) + '</li>';
+  } else if (!fr.deviations || !fr.deviations.length) {
+    rc.textContent = '全部符合'; rc.className = 'bg-success/15 text-success font-label-caps px-3 py-1 rounded-full';
+    rv.innerHTML = '<li class="text-secondary text-body-base flex items-center gap-2"><span class="material-symbols-outlined text-success">verified</span>DeepSeek 逐条核对：与规范一致。</li>';
+  } else {
+    rc.textContent = fr.deviations.length + ' 处差异';
+    rv.innerHTML = fr.deviations.map(d => { const [col, lab] = SEV[d.severity] || SEV.low;
+      return `<li class="p-3 bg-surface-container-low rounded-lg border border-surface-variant"><div class="flex items-center gap-2"><span class="material-symbols-outlined ${col} text-sm">flag</span><span class="font-body-bold">${esc(d.item)}</span><span class="text-label-caps ${col}">${lab}</span></div><p class="text-secondary text-sm mt-1">规范：${esc(d.spec)}</p><p class="text-secondary text-sm">引擎：${esc(d.engine)}</p></li>`; }).join('');
+  }
 }
 document.getElementById('dl-report').onclick = ()=>{
   if (!REPORT) return;

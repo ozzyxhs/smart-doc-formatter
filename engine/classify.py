@@ -2,7 +2,8 @@
 
 只返回「按 idx 索引的标签」，**绝不返回文本**——排版永远用源文本，LLM 错也丢不了内容。
 """
-from . import llm
+from concurrent.futures import ThreadPoolExecutor
+from . import llm, config
 
 LABELS = [
     "cover", "cover_doctype", "cover_field", "cover_date", "title_main", "title_en",
@@ -50,19 +51,29 @@ def _style_fallback(b):
 
 def classify(blocks, *, batch_size=90):
     paras = [b for b in blocks if b["kind"] == "paragraph"]
+    batches = [paras[i:i + batch_size] for i in range(0, len(paras), batch_size)]
     labels = {}
-    for i in range(0, len(paras), batch_size):
-        batch = paras[i:i + batch_size]
-        try:
-            out = llm.chat_json([
-                {"role": "system", "content": _SYS},
-                {"role": "user", "content": _batch_prompt(batch)},
-            ], max_tokens=4000)
-        except Exception:
-            out = {}
-        for b in batch:
-            lab = out.get(str(b["idx"])) or out.get(b["idx"])
-            if lab not in LABELS:
-                lab = _style_fallback(b)      # LLM 缺/非法 -> 确定性兜底
-            labels[b["idx"]] = lab
+    if not batches:
+        return labels
+    # 批次并发（v4-pro 单批较慢，并发把总耗时压到 ~单批）
+    with ThreadPoolExecutor(max_workers=min(8, len(batches))) as ex:
+        for r in ex.map(_do_batch, batches):
+            labels.update(r)
     return labels
+
+
+def _do_batch(batch):
+    try:
+        out = llm.chat_json([
+            {"role": "system", "content": _SYS},
+            {"role": "user", "content": _batch_prompt(batch)},
+        ], model=config.DEEPSEEK_CLASSIFY_MODEL, max_tokens=4000)
+    except Exception:
+        out = {}
+    res = {}
+    for b in batch:
+        lab = out.get(str(b["idx"])) or out.get(b["idx"])
+        if lab not in LABELS:
+            lab = _style_fallback(b)              # LLM 缺/非法 -> 确定性兜底
+        res[b["idx"]] = lab
+    return res

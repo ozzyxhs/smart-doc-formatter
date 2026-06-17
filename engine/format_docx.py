@@ -275,8 +275,9 @@ def format_docx(blocks, labels, template, out_path):
             DU.set_page_number_format(sec, "decimal", start=1)
 
     out.save(out_path)
+    _m = template['page']['margins_mm']
     change_log = [
-        {"what": "页面规范化", "detail": f"A4 · 边距 {template['page']['margins_mm']} mm · 网格 38×38"},
+        {"what": "页面规范化", "detail": f"A4 · 边距 上{_m['top']}/下{_m['bottom']}/左{_m['left']}/右{_m['right']} mm · 网格 38×38"},
         {"what": "封面重排", "detail": "文种隶书一号·题目黑体二号·信息栏黑体小三·独立成页·不编页码"},
         {"what": "分节页码", "detail": "封面无码 → 摘要/目录罗马数字 → 正文阿拉伯数字重起 1"},
         {"what": "字体统一", "detail": f"中文 {template['fonts']['default_cn']} / 西文 {template['fonts']['default_latin']}（eastAsia 分绑）"},

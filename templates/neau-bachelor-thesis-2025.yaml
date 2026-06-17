@@ -10,6 +10,7 @@ meta:
   doc_type: thesis                # thesis | design
   spec_version: "2025.03"
   source: 东北农业大学《本科毕业论文（设计）撰写规范》2025年3月修订
+  spec_source_json: 农大.json          # 格式复审用的权威规范（fixtures 本地）
   standards: [GB/T7713.1-2006, GB/T7714-2015, GB3100-3102-1993, CY/T121-2015]
   min_word_count: { thesis: 8000, design: 5000 }
 
