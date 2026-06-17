@@ -57,3 +57,7 @@ P0（本提交）：
 - **浏览器端到端验证**（preview, 端口8011）：试用样例→真 DeepSeek 识别→排版→下载 `已排版_论文（三稿）.docx`(77KB, 正确 docx MIME)；4 屏渲染与原型一致；内容守恒 badge 正常。
 - 运行：repo 根 `python -m uvicorn app.main:app --reload`（DeepSeek key 读 `.env`）。
 - 注：fixtures 与 `app/_jobs/`（含上传/成品，带论文内容）均 gitignore，不入公开库。
+
+## 2026-06-17 · 补：格式②校名确认
+
+用户确认格式②（15毕业设计模板 + 马晓倩论文）= **新疆工程学院**。更新 `PLAN.md`(§2/§6) + `fixtures/README.md`。P3 建设期编译器将以此为第二格式。
