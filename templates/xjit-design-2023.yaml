@@ -1,0 +1,335 @@
+meta:
+  id: xjit-design-2023
+  name: 新疆工程学院 毕业设计
+  institution: 新疆工程学院
+  degree_level: bachelor
+  doc_type: design
+  spec_version: '2025.06'
+  source: 新疆工程学院《毕业设计（论文）撰写规范》及实际样本
+  spec_source_json: null
+  standards:
+  - GB/T7713.1-2006
+  - GB/T7714-2015
+  - GB3100-3102-1993
+  min_word_count:
+    thesis: 8000
+    design: 5000
+size_table:
+  初号: 42
+  小初: 36
+  一号: 26
+  小一: 24
+  二号: 22
+  小二: 18
+  三号: 16
+  小三: 15
+  四号: 14
+  小四: 12
+  五号: 10.5
+  小五: 9
+  六号: 7.5
+  小六: 6.5
+page:
+  size: A4
+  width_mm: 210
+  height_mm: 297
+  margins_mm:
+    top: 25.4
+    bottom: 25.4
+    left: 31.7
+    right: 31.7
+  grid:
+    type: lines_and_chars
+    lines_per_page: 40
+    chars_per_line: 38
+fonts:
+  default_cn: 宋体
+  default_latin: Times New Roman
+  heading_cn: 黑体
+header:
+  applicable: 除封面及扉页外各页
+  margin_mm: 15
+  content: thesis_title
+  font:
+    cn: 宋体
+    latin: Times New Roman
+    size: 小五
+    align: center
+  border_below:
+    style: single
+    upper_pt: 1.0
+    lower: hairline
+footer:
+  margin_mm: 15
+  font:
+    cn: 宋体
+    latin: Times New Roman
+    size: 小五
+    align: center
+  page_number:
+    format: '- n -'
+pagination:
+  cover_titlepage: none
+  frontmatter: roman
+  body: arabic
+cover:
+  logo: null
+  align: center
+  line_spacing: single
+  blank:
+    font: 宋体
+    size: 五号
+  blanks:
+    after_doctype: 1
+    after_title: 1
+    after_fields: 2
+  slots:
+    student_id:
+      text: 学  号：________
+      font: 宋体
+      size: 四号
+      bold: true
+      align: left
+    doctype:
+      text: 毕业设计
+      font: 宋体
+      size: 一号
+      bold: true
+      align: center
+    title_cn:
+      font: 宋体
+      size: 四号
+      bold: true
+      first_line_indent_mm: 12.1
+      align: left
+      note: 设计题目：...
+    field:
+      font: 宋体
+      size: 四号
+      bold: true
+      first_line_indent_mm: 12.1
+      align: left
+      note: 学生姓名、专业、班级、学院、指导教师等
+    date:
+      font: 宋体
+      size: 四号
+      align: center
+declaration:
+  title:
+    text: 声    明
+    font: 黑体
+    size: 二号
+    bold: true
+    align: center
+  body:
+    font: 宋体
+    size: 小四
+    first_line_indent_chars: 2
+    line_spacing: single
+    align: justify
+  signatures:
+    font: 宋体
+    size: 小四
+    first_line_indent_chars: 0
+    align: left
+chinese_abstract:
+  title:
+    text: 摘  要
+    font: 黑体
+    size: 小二
+    bold: false
+    align: center
+  body:
+    font: 宋体
+    size: 小四
+    first_line_indent_chars: 2
+    line_spacing: single
+    word_count: 300-500字
+  keywords:
+    prefix: 关键词：
+    prefix_bold: true
+    position: 摘要正文下空一行顶格
+    separator: ；
+    count: 3-5
+    end_punctuation: none
+    font: 宋体
+    size: 小四
+english_abstract:
+  title:
+    text: Abstract
+    font: 黑体
+    size: 小二
+    bold: false
+    align: center
+  body:
+    font: Times New Roman
+    size: 小四
+    first_line_indent_chars: 2
+    line_spacing: single
+  keywords:
+    prefix: Keywords：
+    prefix_bold: true
+    font: Times New Roman
+    size: 小四
+    separator: ；
+    end_punctuation: none
+table_of_contents:
+  title:
+    text: 目  录
+    font: 黑体
+    size: 小二
+    bold: false
+    align: center
+  levels: 3
+  numbering_format: 1……, 1.1……, 1.1.1……
+  level_1:
+    font: 宋体
+    size: 五号
+    bold: false
+    indent_chars: 0
+  level_2:
+    font: 宋体
+    size: 五号
+    indent_chars: 1
+  level_3:
+    font: 宋体
+    size: 五号
+    indent_chars: 2
+  number_letter_font: Times New Roman
+  line_spacing: single
+  leader: ……
+headings:
+  level_1:
+    numbering: '1'
+    name: 章
+    font_cn: 黑体
+    latin: Times New Roman
+    size: 二号
+    bold: false
+    first_line_indent_chars: 0
+    space_before_lines: 0.5
+    space_after_lines: 0.5
+    line_spacing: single
+    page_break_before: true
+    align: center
+  level_2:
+    numbering: '1.1'
+    name: 节
+    font_cn: 黑体
+    latin: Times New Roman
+    size: 三号
+    bold: false
+    first_line_indent_chars: 0
+    line_spacing: single
+    align: left
+  level_3:
+    numbering: 1.1.1
+    name: 条
+    font_cn: 黑体
+    latin: Times New Roman
+    size: 小三
+    bold: false
+    first_line_indent_chars: 0
+    line_spacing: single
+    align: left
+  level_4:
+    numbering: 1.1.1.1
+    name: 款
+    font_cn: 黑体
+    latin: Times New Roman
+    size: 四号
+    bold: false
+    first_line_indent_chars: 0
+    line_spacing: single
+    align: left
+  level_5:
+    numbering: (1)
+    name: 项
+    font_cn: 黑体
+    latin: Times New Roman
+    size: 小四
+    bold: false
+    first_line_indent_chars: 1
+    line_spacing: single
+body_paragraph:
+  font:
+    cn: 宋体
+    latin: Times New Roman
+    size: 小四
+  first_line_indent_chars: 2
+  align: justify
+  line_spacing: single
+tables:
+  style: three_line
+  border:
+    top_bottom_pt: 1.5
+    middle_pt: 0.5
+  numbering:
+    format: 表3-1
+    sep: 一个字符
+  title:
+    position: above_center
+    font: 宋体
+    size: 五号
+    latin: Times New Roman
+    no_punctuation: true
+  content:
+    font: 宋体
+    size: 五号
+    latin: Times New Roman
+    align: center
+  notes:
+    font: 宋体
+    size: 小五
+    indent_chars: 1
+    position: below
+figures:
+  numbering:
+    format: 图3-1
+    sep: 一个字符
+  title:
+    position: below_center
+    font: 宋体
+    size: 五号
+    latin: Times New Roman
+  content_size: 小四
+  page_rule: 插图与其图号图题为一整体，不得拆开排写于两页
+citation:
+  standard: GB/T7714-2015
+  style: 顺序编码制
+  format: superscript_bracket
+  examples:
+    single: '[1]'
+    multiple: '[1,3,5]'
+    continuous: '[6-8]'
+  restriction: 不得将引用文献标示置于各级标题处
+references:
+  title:
+    text: 参考文献
+    same_as: heading_1
+  body:
+    same_as: body_paragraph
+    numbering:
+      format: '[1]'
+      align: left
+  requirements:
+    thesis:
+      min_total: 20
+      min_foreign: 4
+    design:
+      min_total: 10
+acknowledgements:
+  title:
+    text: 谢  辞
+    same_as: heading_1
+  body:
+    same_as: body_paragraph
+appendix:
+  numbering:
+    style: 大写正体字母 A, B, C
+    single_still_numbered: true
+  internal:
+    figure: 图A.1
+    table: 表B.1
+    formula: 式(C-1)
+    reference: 文献[D.1]

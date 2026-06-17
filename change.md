@@ -90,3 +90,11 @@ P0（本提交）：
 - **模型**：结构识别曾试 flash 提速,但用户定"宁慢勿错用最强"→`DEEPSEEK_CLASSIFY_MODEL` 默认回 `deepseek-v4-pro`(想快可设 flash)。`classify` 批次改 `ThreadPoolExecutor` 并发(单批慢,并发压总耗时)。
 - **运行指示(用户要求)**：`analyzing.html` 加"运行中 · Ns"计时 + ping 点 + review 阶段文案,长步骤也明确没挂。
 - 已知小瑕：报告"页面规范化"打印了 dict 原文(待美化)。
+
+## 2026-06-17 · P3a 规范编译器核心（样本→YAML，新疆工程学院验证）
+
+用户拍板建编译器(P3)。`engine/compiler.py`：规范文档 → 声明式 YAML 模板。
+- 两种输入：规范条文(pdf/docx 文字)→LLM 读规则；样本/模板 docx→`python-docx` 读「实际生效格式」(边距/样式/字体/字号/缩进 facts)→LLM 归并。样本模式更可靠(数值来自文件)。
+- LLM 缝②：DeepSeek v4-pro 思考模式，喂 农大 YAML 当 schema 样例 + facts + 文本 → 出 draft YAML。
+- **验证(新疆工程学院，用 马晓倩 样本反推)**：产出 `templates/xjit-design-2023.yaml`，自动抓到真实差异——边距 25.4/31.7(非农大38/48/24/24)、正文小四(非五号)、封面有**学号行**、有**声明页**(declaration)。引擎不动，只多一份 YAML。
+- `scripts/compile_spec.py` 本地 CLI。待办：算力自检(回译校验)、"上传新规范"屏接真、端到端排文章验证。
