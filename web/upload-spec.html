@@ -52,8 +52,11 @@
 <div id="summary" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
 </section>
 <section class="glass-panel rounded-xl p-6 mb-6">
-<div class="flex items-center justify-between mb-4"><h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">verified_user</span>算力自检 · 回译交叉校验</h2><span id="audit-badge" class="font-label-caps px-3 py-1 rounded-full bg-surface-container">—</span></div>
+<div class="flex items-center justify-between mb-1"><h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">verified_user</span>算力自检 · 模型复查自己的抽取</h2><span id="audit-badge" class="font-label-caps px-3 py-1 rounded-full bg-surface-container">—</span></div>
+<p class="text-secondary text-sm mb-4">不是审核规范，是 DeepSeek 把抽出的规则<b>回去跟来源逐条核对</b>：<b class="text-error">矛盾</b>=抽错需改 · <b class="text-warning">待补/推断</b>=来源没明说 · <b class="text-success">一致</b>=可信。</p>
+<div id="audit-summary" class="text-body-base mb-3"></div>
 <ul id="audit" class="space-y-2"></ul>
+<button id="audit-toggle" class="hidden mt-3 text-primary text-sm hover:underline"></button>
 </section>
 <button id="go" class="w-full bg-primary text-on-primary font-body-bold py-4 rounded-lg hover:bg-on-primary-container transition-colors flex items-center justify-center gap-2 shadow-sm">用此规范开始排版 <span class="material-symbols-outlined">arrow_forward</span></button>
 </div>
@@ -108,7 +111,7 @@ async function poll(sid){
   if(s.status==='error') return showErr('编译失败：'+(s.error||''));
   render(s);
 }
-const AUD={ ok:['text-success','✓ 来源支持'], infer:['text-warning','推断/报备'], missing:['text-secondary','待补'], wrong:['text-error','与来源矛盾'] };
+const AUD={ ok:['text-success','一致'], infer:['text-warning','推断'], missing:['text-warning','待补'], wrong:['text-error','矛盾'] };
 function renderSummaryCards(summary){
   document.getElementById('summary').innerHTML=(summary||[]).map(x=>`<div class="border border-outline-variant rounded-lg p-3"><div class="text-label-caps text-secondary">${esc(x.k)}</div><div class="font-body-bold mt-0.5">${esc(x.v)}</div></div>`).join('') || '<p class="text-secondary">（无）</p>';
 }
@@ -117,12 +120,24 @@ function render(s){
   currentTid = s.tid;
   document.getElementById('chat-ctx').textContent = '· 已加载规范';
   renderSummaryCards(s.summary);
-  const a=s.audit||{items:[]}; const badge=document.getElementById('audit-badge');
-  const wrong=(a.items||[]).filter(i=>i.status==='wrong').length;
-  if(a.error){ badge.textContent='未自检'; }
-  else if(wrong){ badge.textContent=wrong+' 处需核'; badge.className='font-label-caps px-3 py-1 rounded-full bg-error-container text-on-error-container'; }
-  else { badge.textContent='自检通过'; badge.className='font-label-caps px-3 py-1 rounded-full bg-success/15 text-success'; }
-  document.getElementById('audit').innerHTML=(a.items||[]).map(i=>{const[c,l]=AUD[i.status]||AUD.infer; return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-20">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}</div></li>`;}).join('') || '<li class="text-secondary">（无条目）</li>';
+  const a=s.audit||{items:[]}; const items=a.items||[];
+  const by=st=>items.filter(i=>i.status===st);
+  const wrong=by('wrong'), missing=by('missing'), infer=by('infer'), ok=by('ok');
+  const badge=document.getElementById('audit-badge');
+  if(a.error){ badge.textContent='未自检'; badge.className='font-label-caps px-3 py-1 rounded-full bg-surface-container'; }
+  else if(wrong.length){ badge.textContent=wrong.length+' 处需改'; badge.className='font-label-caps px-3 py-1 rounded-full bg-error-container text-on-error-container'; }
+  else if(missing.length+infer.length){ badge.textContent=(missing.length+infer.length)+' 处待核'; badge.className='font-label-caps px-3 py-1 rounded-full bg-surface-container'; }
+  else { badge.textContent='全部一致'; badge.className='font-label-caps px-3 py-1 rounded-full bg-success/15 text-success'; }
+  document.getElementById('audit-summary').innerHTML = a.error ? `<span class="text-secondary">${esc(a.error)}</span>` :
+    `<span class="text-error font-body-bold">✗ ${wrong.length} 矛盾</span> · <span class="text-warning">⚪ ${missing.length} 待补</span> · <span class="text-warning">◐ ${infer.length} 推断</span> · <span class="text-success">✓ ${ok.length} 一致</span>`;
+  const itemHtml=i=>{const[c,l]=AUD[i.status]||AUD.infer; return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-12">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}</div></li>`;};
+  const problems=[...wrong,...missing,...infer];
+  const auditUl=document.getElementById('audit');
+  auditUl.innerHTML = problems.length ? problems.map(itemHtml).join('') : '<li class="text-success flex items-center gap-2"><span class="material-symbols-outlined">verified</span>全部与来源一致。</li>';
+  const tog=document.getElementById('audit-toggle');
+  if(ok.length){ let shown=false; tog.classList.remove('hidden'); tog.textContent='展开 '+ok.length+' 项一致';
+    tog.onclick=()=>{ shown=!shown; auditUl.innerHTML=(shown?[...problems,...ok]:problems).map(itemHtml).join(''); tog.textContent=shown?'收起一致项':('展开 '+ok.length+' 项一致'); }; }
+  else { tog.classList.add('hidden'); }
   document.getElementById('go').onclick=()=>{ location.href='/?tpl='+encodeURIComponent(s.tid); };
 }
 
