@@ -14,6 +14,15 @@ const API = {
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || '样例不可用');
     return r.json();
   },
+  async createSpec(file, { name, institution, doc_type }) {
+    const fd = new FormData();
+    fd.append('file', file); fd.append('name', name);
+    fd.append('institution', institution || ''); fd.append('doc_type', doc_type || 'thesis');
+    const r = await fetch('/api/specs', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || '上传失败');
+    return r.json();
+  },
+  async spec(id) { return (await fetch('/api/specs/' + id)).json(); },
   async job(id) { return (await fetch('/api/jobs/' + id)).json(); },
   async report(id) { return (await fetch('/api/jobs/' + id + '/report')).json(); },
   async preview(id) { return (await fetch('/api/jobs/' + id + '/preview')).json(); },

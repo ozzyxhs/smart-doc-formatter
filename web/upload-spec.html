@@ -1,0 +1,108 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>SmartDoc · 上传新规范</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="/static/js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-body-base antialiased min-h-screen">
+<header class="bg-white/75 backdrop-blur-md border-b border-surface-variant sticky top-0 z-50 flex items-center gap-3 px-6 py-3">
+<a href="/" class="text-secondary hover:text-primary flex items-center gap-1"><span class="material-symbols-outlined">arrow_back</span>返回</a>
+<span class="text-secondary">/</span><span class="font-body-bold">上传新规范</span>
+</header>
+<main class="max-w-3xl mx-auto px-margin-mobile md:px-0 py-8 md:py-12">
+<h1 class="text-display-lg-mobile font-display-lg text-on-surface mb-2">上传新规范</h1>
+<p class="text-secondary mb-8">上传一份<b>规范文档</b>（学校/期刊要求，.pdf/.docx）或一份<b>已排好的样本</b>（.docx/.doc）。DeepSeek 会把它编译成可复用模板，并做算力自检。</p>
+
+<!-- 元信息 -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+<label class="flex flex-col gap-1"><span class="text-label-caps text-secondary">规范名称</span>
+<input id="f-name" class="rounded-lg border border-outline-variant px-3 py-2 bg-surface-container-lowest" placeholder="如 新疆工程学院 毕业设计"></label>
+<label class="flex flex-col gap-1"><span class="text-label-caps text-secondary">院校/机构</span>
+<input id="f-inst" class="rounded-lg border border-outline-variant px-3 py-2 bg-surface-container-lowest" placeholder="如 新疆工程学院"></label>
+<label class="flex flex-col gap-1"><span class="text-label-caps text-secondary">类型</span>
+<select id="f-type" class="rounded-lg border border-outline-variant px-3 py-2 bg-surface-container-lowest"><option value="thesis">毕业论文 thesis</option><option value="design">毕业设计 design</option></select></label>
+</div>
+
+<!-- 上传区 -->
+<div id="drop" class="bg-primary-container/5 border-2 border-dashed border-primary/40 hover:border-primary rounded-xl p-12 flex flex-col items-center justify-center text-center cursor-pointer mb-6">
+<div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center mb-4"><span class="material-symbols-outlined text-primary text-3xl">upload_file</span></div>
+<h3 class="text-headline-md font-headline-md mb-2">拖入 或 选择规范文档</h3>
+<p class="text-secondary mb-4">.pdf / .docx / .doc</p>
+<button id="browse" class="bg-surface border border-outline-variant font-body-bold py-2 px-6 rounded-lg hover:bg-surface-variant">选择文件</button>
+<input id="file" type="file" accept=".pdf,.docx,.doc" class="hidden">
+</div>
+<div id="err" class="hidden mb-6 p-4 rounded-lg bg-error-container text-on-error-container"></div>
+
+<!-- 编译中 -->
+<div id="loading" class="hidden glass-panel rounded-xl p-8 text-center mb-6">
+<span class="material-symbols-outlined text-primary text-4xl animate-spin">progress_activity</span>
+<p class="font-body-bold mt-3" id="loading-h">正在编译规范…</p>
+<p class="text-secondary text-sm mt-1">DeepSeek 抽取规则 + 算力自检（回译交叉校验），深度推理稍慢</p>
+<p class="text-label-caps text-secondary mt-2 flex items-center justify-center gap-1.5" id="elapsed"><span class="w-1.5 h-1.5 rounded-full bg-primary-container inline-block animate-ping"></span>运行中 · 0s</p>
+</div>
+
+<!-- 结果 -->
+<div id="result" class="hidden">
+<section class="glass-panel rounded-xl p-6 mb-6">
+<h2 class="text-headline-md font-headline-md flex items-center gap-2 mb-4"><span class="material-symbols-outlined text-primary">rule</span>抽取的规则摘要</h2>
+<div id="summary" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+</section>
+<section class="glass-panel rounded-xl p-6 mb-6">
+<div class="flex items-center justify-between mb-4"><h2 class="text-headline-md font-headline-md flex items-center gap-2"><span class="material-symbols-outlined text-primary">verified_user</span>算力自检 · 回译交叉校验</h2><span id="audit-badge" class="font-label-caps px-3 py-1 rounded-full bg-surface-container">—</span></div>
+<ul id="audit" class="space-y-2"></ul>
+</section>
+<button id="go" class="w-full bg-primary text-on-primary font-body-bold py-4 rounded-lg hover:bg-on-primary-container transition-colors flex items-center justify-center gap-2 shadow-sm">用此规范开始排版 <span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+</main>
+<script src="/static/js/app.js?v=p3"></script>
+<script>
+const fileInput=document.getElementById('file'), errBox=document.getElementById('err');
+const loading=document.getElementById('loading'), result=document.getElementById('result');
+function showErr(m){ errBox.textContent=m; errBox.classList.remove('hidden'); loading.classList.add('hidden'); }
+document.getElementById('browse').onclick=(e)=>{e.stopPropagation();fileInput.click();};
+document.getElementById('drop').onclick=()=>fileInput.click();
+const drop=document.getElementById('drop');
+;['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('bg-primary-container/10');}));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('bg-primary-container/10');}));
+drop.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); });
+fileInput.onchange=()=>{ if(fileInput.files[0]) start(fileInput.files[0]); };
+
+let _tick;
+async function start(file){
+  errBox.classList.add('hidden');
+  const name=(document.getElementById('f-name').value||file.name).trim();
+  const institution=document.getElementById('f-inst').value.trim();
+  const doc_type=document.getElementById('f-type').value;
+  loading.classList.remove('hidden'); result.classList.add('hidden');
+  const t0=Date.now(); const el=document.getElementById('elapsed');
+  _tick=setInterval(()=>{ el.lastChild.textContent='运行中 · '+Math.round((Date.now()-t0)/1000)+'s'; },1000);
+  try{
+    const { spec_id } = await API.createSpec(file, { name, institution, doc_type });
+    poll(spec_id);
+  }catch(e){ clearInterval(_tick); showErr(e.message||'上传失败'); }
+}
+async function poll(sid){
+  let s; try{ s=await API.spec(sid); }catch(e){ return setTimeout(()=>poll(sid),1500); }
+  if(s.status==='running') return setTimeout(()=>poll(sid),1500);
+  clearInterval(_tick); loading.classList.add('hidden');
+  if(s.status==='error') return showErr('编译失败：'+(s.error||''));
+  render(s);
+}
+const AUD={ ok:['text-success','✓ 来源支持'], infer:['text-warning','推断/报备'], missing:['text-secondary','待补'], wrong:['text-error','与来源矛盾'] };
+function render(s){
+  result.classList.remove('hidden');
+  document.getElementById('summary').innerHTML=(s.summary||[]).map(x=>`<div class="border border-outline-variant rounded-lg p-3"><div class="text-label-caps text-secondary">${esc(x.k)}</div><div class="font-body-bold mt-0.5">${esc(x.v)}</div></div>`).join('') || '<p class="text-secondary">（无）</p>';
+  const a=s.audit||{items:[]}; const badge=document.getElementById('audit-badge');
+  const wrong=(a.items||[]).filter(i=>i.status==='wrong').length;
+  if(a.error){ badge.textContent='未自检'; }
+  else if(wrong){ badge.textContent=wrong+' 处需核'; badge.className='font-label-caps px-3 py-1 rounded-full bg-error-container text-on-error-container'; }
+  else { badge.textContent='自检通过'; badge.className='font-label-caps px-3 py-1 rounded-full bg-success/15 text-success'; }
+  document.getElementById('audit').innerHTML=(a.items||[]).map(i=>{const[c,l]=AUD[i.status]||AUD.infer; return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-20">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}</div></li>`;}).join('') || '<li class="text-secondary">（无条目）</li>';
+  document.getElementById('go').onclick=()=>{ location.href='/?tpl='+encodeURIComponent(s.tid); };
+}
+</script>
+</body></html>

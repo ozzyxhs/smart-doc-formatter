@@ -98,3 +98,11 @@ P0（本提交）：
 - LLM 缝②：DeepSeek v4-pro 思考模式，喂 农大 YAML 当 schema 样例 + facts + 文本 → 出 draft YAML。
 - **验证(新疆工程学院，用 马晓倩 样本反推)**：产出 `templates/xjit-design-2023.yaml`，自动抓到真实差异——边距 25.4/31.7(非农大38/48/24/24)、正文小四(非五号)、封面有**学号行**、有**声明页**(declaration)。引擎不动，只多一份 YAML。
 - `scripts/compile_spec.py` 本地 CLI。待办：算力自检(回译校验)、"上传新规范"屏接真、端到端排文章验证。
+
+## 2026-06-18 · P3b/c 算力自检 + "上传新规范"屏接真
+
+- **算力自检（回译交叉校验，0人工）**：`compiler.self_check`——DeepSeek v4-pro 思考把抽出的 YAML 逐条回译核对来源，判 ok/infer(报备)/missing(待补)/wrong(矛盾)，出 wrong 则不过。实测新疆模板自检 33 条、ok=True（page/fonts/cover完全匹配, header/min_word_count 等待补）。
+- `compiler.compile_and_save`：抽取→自检→入 `templates/<tid>.yaml`，返回人话摘要 + 审阅报告。
+- **API**：`POST /api/specs`(上传规范/样本→后台编译) + `GET /api/specs/{id}`(轮询)。
+- **"上传新规范"屏** `web/upload-spec.html`：填名称/院校/类型 + 拖文档 → 运行中(Ns计时) → 展示「抽取规则摘要」卡片 + 「算力自检·审阅报告」(✓/报备/待补/矛盾) → 「用此规范开始排版」→ 回工作台并预选该模板(`/?tpl=`)。dashboard 右栏加「+ 上传新规范」入口。
+- 编译出的模板自动进 `/api/templates`(农大 + 新疆 xjit 已列)。

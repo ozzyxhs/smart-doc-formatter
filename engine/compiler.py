@@ -7,6 +7,7 @@
 """
 import re
 import json
+import uuid
 import subprocess
 from pathlib import Path
 import yaml
@@ -106,9 +107,7 @@ _SYS = (
 )
 
 
-def extract_template(path, *, tid, name, institution, doc_type="thesis"):
-    """规范文档 → draft YAML(dict) + 读到的 facts。"""
-    text, facts = _read_spec(path)
+def _extract_yaml(text, facts, *, name, institution, doc_type):
     example = (config.TEMPLATES_DIR / "neau-bachelor-thesis-2025.yaml").read_text(encoding="utf-8")
     user = (
         f"【schema 样例（农大，仅示意结构，不要照抄数值）】\n{example}\n\n"
@@ -120,5 +119,77 @@ def extract_template(path, *, tid, name, institution, doc_type="thesis"):
                    thinking=True, max_tokens=12000)
     y = _parse_yaml(out) or {}
     y.setdefault("meta", {})
-    y["meta"].update({"id": tid, "name": name, "institution": institution, "doc_type": doc_type})
+    y["meta"].update({"name": name, "institution": institution, "doc_type": doc_type})
+    return y
+
+
+def extract_template(path, *, tid, name, institution, doc_type="thesis"):
+    """规范文档 → draft YAML(dict) + facts（供 CLI/测试）。"""
+    text, facts = _read_spec(path)
+    y = _extract_yaml(text, facts, name=name, institution=institution, doc_type=doc_type)
+    y["meta"]["id"] = tid
     return y, facts
+
+
+_CHECK_SYS = (
+    "你是规范抽取的算力自检员（0 人工）。给你【抽出的模板 YAML】和【规范/样本来源】。"
+    "把 YAML 的关键格式规则逐条'回译'成人话，与来源交叉核对，判定每条状态："
+    "ok=来源明确支持；infer=合理推断/需报备；missing=来源没说、用了默认、待补；wrong=与来源矛盾。"
+    "只输出 JSON：{\"ok\": true/false, \"items\": [{\"field\":\"\",\"yaml\":\"\",\"source\":\"\",\"status\":\"ok|infer|missing|wrong\",\"note\":\"\"}]}。"
+    "出现任一 wrong 则 ok=false。"
+)
+
+
+def self_check(yaml_obj, text, facts=None):
+    """算力自检·回译交叉校验：YAML 是否被来源支持。返回 {ok, items, error?}。"""
+    user = ("【抽出的模板 YAML】\n" + yaml.safe_dump(yaml_obj, allow_unicode=True, sort_keys=False)[:8000]
+            + "\n\n【来源 facts】\n" + (json.dumps(facts, ensure_ascii=False) if facts else "（无）")
+            + "\n\n【来源文本】\n" + (text or "")[:6000])
+    try:
+        out = llm.chat_json([{"role": "system", "content": _CHECK_SYS}, {"role": "user", "content": user}],
+                            thinking=True, max_tokens=16000)   # 思考模式 COT+输出共用，给足避免 JSON 截断
+        out.setdefault("items", [])
+        out.setdefault("ok", not any(i.get("status") == "wrong" for i in out["items"]))
+    except Exception as e:
+        return {"ok": None, "items": [], "error": str(e)}
+    return out
+
+
+def _slug(doc_type):
+    return f"custom-{doc_type}-{uuid.uuid4().hex[:6]}"
+
+
+def _summary(y):
+    """人话版抽取摘要（给"上传新规范"屏的卡片）。"""
+    out = []
+    pg = y.get("page", {}).get("margins_mm")
+    if pg:
+        out.append({"k": "页边距", "v": f"上{pg.get('top')}/下{pg.get('bottom')}/左{pg.get('left')}/右{pg.get('right')} mm"})
+    bp = y.get("body_paragraph", {}).get("font", {})
+    if bp:
+        out.append({"k": "正文字体", "v": f"{bp.get('cn')} {bp.get('size')} / 西文 {bp.get('latin')}"})
+    h1 = y.get("headings", {}).get("level_1", {})
+    if h1:
+        out.append({"k": "一级标题", "v": f"{h1.get('font_cn')} {h1.get('size')}"})
+    nlv = len([k for k in y.get("headings", {}) if k.startswith("level_")])
+    if nlv:
+        out.append({"k": "标题层级", "v": f"{nlv} 级"})
+    refs = y.get("references", {}).get("requirements", {})
+    if refs:
+        out.append({"k": "参考文献", "v": json.dumps(refs, ensure_ascii=False)})
+    cov = y.get("cover", {}).get("slots")
+    if cov:
+        out.append({"k": "封面要素", "v": "、".join(list(cov.keys()))})
+    return out
+
+
+def compile_and_save(path, *, name, institution, doc_type="thesis"):
+    """上传规范 → 抽取 + 自检 + 入库。返回 {tid, name, summary, audit}。"""
+    text, facts = _read_spec(path)
+    y = _extract_yaml(text, facts, name=name, institution=institution, doc_type=doc_type)
+    tid = _slug(doc_type)
+    y["meta"]["id"] = tid
+    audit = self_check(y, text, facts)
+    (config.TEMPLATES_DIR / f"{tid}.yaml").write_text(
+        yaml.safe_dump(y, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return {"tid": tid, "name": name, "summary": _summary(y), "audit": audit}

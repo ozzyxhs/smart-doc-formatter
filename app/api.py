@@ -9,10 +9,11 @@ import traceback
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 import yaml
-from engine import config, pipeline
+from engine import config, pipeline, compiler
 
 router = APIRouter()
 _jobs = {}
+_specs = {}
 _lock = threading.Lock()
 
 
@@ -35,6 +36,44 @@ def list_templates():
         except Exception:
             pass
     return out
+
+
+def _run_spec(sid, path, name, institution, doc_type):
+    try:
+        res = compiler.compile_and_save(path, name=name, institution=institution, doc_type=doc_type)
+        with _lock:
+            _specs[sid].update(status="done", **res)
+    except Exception as e:
+        traceback.print_exc()
+        with _lock:
+            _specs[sid].update(status="error", error=str(e))
+
+
+@router.post("/specs")
+async def create_spec(file: UploadFile = File(...), name: str = Form(...),
+                      institution: str = Form(""), doc_type: str = Form("thesis")):
+    """上传规范/样本文档 → 后台编译(抽取+自检)→ 入库。轮询 GET /specs/{id}。"""
+    if not (file.filename or "").lower().endswith((".docx", ".doc", ".pdf")):
+        raise HTTPException(400, "规范文档支持 .docx / .doc / .pdf")
+    sid = uuid.uuid4().hex[:12]
+    d = config.JOBS_DIR / ("spec_" + sid)
+    d.mkdir(parents=True, exist_ok=True)
+    inp = d / file.filename
+    with open(inp, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    with _lock:
+        _specs[sid] = {"id": sid, "status": "running", "name": name, "institution": institution}
+    threading.Thread(target=_run_spec, args=(sid, str(inp), name, institution, doc_type), daemon=True).start()
+    return {"spec_id": sid}
+
+
+@router.get("/specs/{sid}")
+def spec_status(sid):
+    with _lock:
+        s = _specs.get(sid)
+    if not s:
+        raise HTTPException(404, "无此规范任务")
+    return s
 
 
 def _run(jid, input_path, template_id, out_path):

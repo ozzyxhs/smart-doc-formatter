@@ -67,7 +67,7 @@
 <div class="p-container-padding-xl h-full flex flex-col">
 <div class="flex justify-between items-center mb-6">
 <h3 class="text-headline-md font-headline-md text-on-surface">选择目标规范</h3>
-<a href="/library.html" class="text-primary font-body-bold text-body-bold hover:underline text-sm">查看全部</a></div>
+<a href="/upload-spec.html" class="text-primary font-body-bold text-body-bold hover:underline text-sm">+ 上传新规范</a></div>
 <div id="tpl-list" class="grid grid-cols-1 gap-4 overflow-y-auto pr-2 pb-8"></div>
 </div>
 </div>
@@ -100,7 +100,8 @@ function syncPicked() {
 async function init() {
   try {
     templates = await API.templates();
-    selectedId = templates[0]?.id || null;
+    const want = qs('tpl');
+    selectedId = (want && templates.find(t => t.id === want)) ? want : (templates[0]?.id || null);
     syncPicked(); renderTemplates();
   } catch (e) { pickedName.textContent = '规范加载失败'; }
 }
