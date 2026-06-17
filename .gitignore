@@ -15,6 +15,10 @@ prototype/
 fixtures/*
 !fixtures/README.md
 
+# extracted institutional assets (校名标准字 from spec docs) — don't republish; regenerate locally
+templates/assets/*
+!templates/assets/README.md
+
 # OS / editor
 .DS_Store
 Thumbs.db

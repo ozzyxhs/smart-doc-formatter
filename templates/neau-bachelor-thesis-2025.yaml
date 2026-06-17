@@ -63,6 +63,22 @@ pagination:
   frontmatter: roman                # 摘要、目录用罗马数字
   body: arabic                      # 正文起阿拉伯数字，分节重启
 
+# 封面（规范 2.3）。引擎按结构标签查 slots 取格式，按 blanks 插空白行；零硬编码。
+cover:
+  logo: { asset: assets/neau-logo.png, width_mm: 120, height_mm: 30 }   # 行1 校名标准字
+  align: center
+  line_spacing: single              # 段前段后0行、网格对齐、单倍行距
+  blank: { font: 宋体, size: 五号 }  # 空白行字体（行3-4 / 6-10 / 17-22）
+  # 规范允许"题目较多可减少空白行"；含校名图后压到一页，取较小值
+  blanks: { after_doctype: 2, after_title: 3, after_fields: 3 }
+  slots:
+    doctype:  { font: 隶书, size: 一号 }                                   # 行2 本科毕业论文/设计
+    title_cn: { font: 黑体, size: 二号, bold: true }                       # 行5 题目(中)
+    title_en: { font: Times New Roman, size: 二号, bold: true }            # 行5 题目(英)
+    field:    { font: 黑体, size: 小三, first_line_indent_chars: 5, align: left }  # 行11-16 信息栏
+    date:     { font: 黑体, size: 小二 }                                   # 行23 日期
+    other:    { font: 宋体, size: 小三 }
+
 # 正文段落与各级标题
 body_paragraph:
   font: { cn: 宋体, latin: Times New Roman, size: 五号 }

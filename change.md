@@ -73,3 +73,13 @@ P0（本提交）：
 附带补提交 P1 验证期的小改：`/api/jobs/demo`(试用样例)、工作台"试用样例"按钮、`/static` no-cache 中间件、静态资源 `?v=` 防缓存。删 `scripts/render_check.py`(坏的 pywin32 诊断脚本)；加 `scripts/check_sections.py`。requirements 加 `pymupdf`。
 
 **渲染验证**（论文三稿→农大）：封面 1 页且字体/无页眉无码全对；摘要页带双线页眉；37 页；内容守恒仍 ✅。待 P3：建设期"上传新规范"编译器（新疆工程学院第二格式）+ 结构闸/视觉QA/警示态。
+
+## 2026-06-17 · P2.5 严格对齐农大 2.3-2.6 + 引擎数据驱动 + 换最强模型
+
+用户质疑：没按 2.3-2.6 来、封面缺校名图、信息栏该首行缩进5字符不是居中、为何硬编码农大而不交给 DeepSeek。**确实没全 follow,本轮全部改对**。
+
+- **模型**：`deepseek-chat`(flash)→ **`deepseek-v4-pro`**(最强,查官方文档确认)。`engine/llm.py` 支持思考模式(`reasoning_effort` + `extra_body.thinking`,不传 temperature)+ 稳健 JSON 解析。结构识别用 v4-pro 非思考(快);复审/抽规范用思考+high。`.env`/`.env.example` 同步。
+- **引擎改数据驱动(核心)**：删掉 `_cover_spec` 里硬编码的农大 if/正则。新增 `cover:` schema 进 YAML(logo/slots/blanks),`_emit_cover` 全从模板读;`classify` 细分封面标签(cover_doctype/field/date);新增 `_add_toc_item` 从 `table_of_contents` 数据出三级目录。**换学校=只换 YAML,引擎不动**。
+- **校名图**：`scripts/extract_logo.py` 从农大PDF提取校名标准字(486×121,~4:1)→ `templates/assets/neau-logo.png`(gitignore,不republish),封面行1插入 120×30mm。
+- **逐条对齐 2.3-2.6(渲染核对)**：2.3 封面=校名图+隶书一号+黑体二号+信息栏黑体小三首行缩进5字符+日期黑体小二,**一页**,无页眉无码;2.4 关键词顶格加粗;2.5 英文摘要**另起一页**(题目+Abstract同页);2.6 目录**另起页+三级缩进+页码右对齐+点引线**+一级加粗+罗马/阿拉伯。全局 Normal 段前段后0/单倍行距。内容守恒仍 ✅。
+- 待办：**LLM 格式复审**(拿规范逐条审"套出来对不对"→报告/回炉,用户要的第二件);新疆工程学院第二格式(P3 编译器)。

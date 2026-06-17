@@ -9,7 +9,8 @@ load_dotenv(REPO_ROOT / ".env")
 # --- DeepSeek (OpenAI 兼容) ---
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+DEEPSEEK_EFFORT = os.getenv("DEEPSEEK_EFFORT", "high")  # 思考模式推理强度: high | xhigh(=max)
 
 # --- 目录 ---
 TEMPLATES_DIR = REPO_ROOT / "templates"

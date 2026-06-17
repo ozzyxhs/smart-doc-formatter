@@ -5,7 +5,7 @@
 from . import llm
 
 LABELS = [
-    "cover", "title_main", "title_en",
+    "cover", "cover_doctype", "cover_field", "cover_date", "title_main", "title_en",
     "abstract_cn_title", "abstract_cn_body", "keywords_cn",
     "abstract_en_title", "abstract_en_body", "keywords_en",
     "toc_title", "toc_item",
@@ -20,7 +20,8 @@ _SYS = (
     "你是中文学位论文的结构识别器。给定按序号排列的段落（含原样式名与文本片段），"
     "为每个序号判定唯一结构标签。只输出 JSON 对象 {\"序号\": \"标签\"}，不要解释、不要返回任何正文文本。\n"
     f"可用标签：{', '.join(LABELS)}。\n"
-    "判定要点：封面/扉页的校名院系姓名学号日期=cover；论文主标题=title_main；"
+    "判定要点：封面文种行‘本科毕业论文/设计’=cover_doctype；封面信息行(所在学院/专业/班级/学生姓名/学生学号/指导教师/研究方向)=cover_field；"
+    "封面日期行(如‘2026年06月’)=cover_date；论文主标题=title_main；"
     "‘摘要’二字单独成行=abstract_cn_title，其后正文=abstract_cn_body，‘关键词：…’=keywords_cn；"
     "英文同理(title_en/abstract_en_title/abstract_en_body/keywords_en)；‘目录’=toc_title，目录条目=toc_item；"
     "章标题(如 1 / 第1章)=heading_1，1.1=heading_2，1.1.1=heading_3，1.1.1.1=heading_4，(1)=heading_5；"
