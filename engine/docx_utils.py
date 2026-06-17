@@ -126,6 +126,54 @@ def add_page_number_field(paragraph, fmt="- n -"):
         paragraph._p.append(_run_text(post))
 
 
+def _clear_runs(paragraph):
+    for r in list(paragraph.runs):
+        r._element.getparent().remove(r._element)
+
+
+def set_page_number_format(section, numfmt, start=1):
+    """分节页码：numfmt = decimal | lowerRoman | upperRoman；start 重起页号。"""
+    sectPr = section._sectPr
+    pg = _get_or_add(sectPr, "w:pgNumType")
+    pg.set(qn("w:fmt"), numfmt)
+    if start is not None:
+        pg.set(qn("w:start"), str(start))
+
+
+def setup_title_header(section, template, title):
+    """本节页眉 = 论文题目 + 粗细双线（封面节不要调用）。"""
+    h = template["header"]
+    section.header.is_linked_to_previous = False
+    p = section.header.paragraphs[0]
+    _clear_runs(p)
+    run = p.add_run(title or "")
+    set_run_font(run, cn=h["font"]["cn"], latin=h["font"]["latin"],
+                 size_pt=pt_of(template, h["font"]["size"]))
+    set_paragraph_format(p, align=h["font"]["align"])
+    set_double_bottom_border(p, upper_pt=h["border_below"]["upper_pt"])
+
+
+def setup_pagenum_footer(section, template, fmt_str):
+    """本节页脚 = 页码域（数字格式随本节 pgNumType）。"""
+    f = template["footer"]
+    section.footer.is_linked_to_previous = False
+    p = section.footer.paragraphs[0]
+    _clear_runs(p)
+    set_paragraph_format(p, align=f["font"]["align"])
+    add_page_number_field(p, fmt=fmt_str)
+    for r in p.runs:
+        set_run_font(r, cn=f["font"]["cn"], latin=f["font"]["latin"],
+                     size_pt=pt_of(template, f["font"]["size"]))
+
+
+def blank_header_footer(section):
+    """封面/扉页节：无页眉、无页码。"""
+    section.header.is_linked_to_previous = False
+    section.footer.is_linked_to_previous = False
+    _clear_runs(section.header.paragraphs[0])
+    _clear_runs(section.footer.paragraphs[0])
+
+
 def apply_three_line_table(table, *, top_bottom_pt=1.5, middle_pt=0.5):
     """开放式三线格：仅上沿/下沿(1.5pt) + 表头下(0.5pt)，无竖线无内线。"""
     tblPr = table._tbl.tblPr

@@ -35,3 +35,7 @@
 .paper .p-table { font-size:12px; color:#444; border-top:2px solid #222; border-bottom:2px solid #222; margin:10px 0; width:100%; }
 .paper .p-table td { padding:4px 8px; }
 .paper .p-table tr:first-child td { border-bottom:1px solid #222; }
+
+/* 真·页面渲染预览 */
+.page-img { display:block; width:100%; max-width:680px; margin:0 auto 18px; background:#fff;
+  border:1px solid #e1e3e4; box-shadow:0 4px 16px rgba(0,0,0,0.06); }

@@ -16,9 +16,12 @@
 <div class="flex items-center gap-2 text-label-caps text-success bg-success/10 px-3 py-1.5 rounded-full"><span class="material-symbols-outlined text-sm">verified</span><span id="cc-badge">内容核对中…</span></div>
 </header>
 <main class="flex-1 flex overflow-hidden">
-<!-- 左：文档预览 -->
+<!-- 左：真·页面渲染预览 -->
 <div class="flex-1 overflow-y-auto bg-surface-container p-8">
-<div class="paper" id="paper"><p class="text-secondary text-center">加载预览…</p></div>
+<div id="pages-loading" class="text-center text-secondary py-16">
+<span class="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
+<p class="mt-3">正在渲染真实页面…首次稍慢（Word 导出排版）</p></div>
+<div id="pages"></div>
 </div>
 <!-- 右：排版规则 / 核对 -->
 <div class="w-[40%] max-w-md border-l border-outline-variant bg-surface-container-lowest flex flex-col">
@@ -39,18 +42,17 @@ const jid = qs('job');
 if (!jid) location.href='/';
 document.getElementById('finish').onclick = ()=> location.href='/result.html?job='+jid;
 
-function renderPaper(items, title) {
-  const paper = document.getElementById('paper');
-  let html = '';
-  for (const it of items) {
-    if (it.kind === 'table') {
-      html += '<table class="p-table"><tbody>' + it.rows.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('') + '</tbody></table>';
-    } else {
-      const cls = { title:'p-title', h1:'p-h1', h2:'p-h2', h3:'p-h3', body:'p-body' }[it.kind] || 'p-body';
-      html += `<div class="${cls}">${esc(it.text)}</div>`;
-    }
+async function loadPages() {
+  const loading = document.getElementById('pages-loading');
+  const wrap = document.getElementById('pages');
+  try {
+    const r = await API.pages(jid);
+    loading.style.display = 'none';
+    if (r.blocked) { wrap.innerHTML = '<p class="text-error text-center py-8">内容守恒未通过，未生成成品。</p>'; return; }
+    wrap.innerHTML = r.pages.map((u,i)=>`<img class="page-img" src="${u}" alt="第${i+1}页" loading="lazy">`).join('');
+  } catch(e) {
+    loading.innerHTML = '<p class="text-error py-8">页面渲染失败（需本机装有 Word）。</p>';
   }
-  paper.innerHTML = html || '<p class="text-secondary">（无预览）</p>';
 }
 const RES_ICON = { pass:['check_circle','text-success'], warn:['error','text-warning'], fail:['cancel','text-error'] };
 function renderRules(rep) {
@@ -72,11 +74,8 @@ async function init() {
   let j;
   try { j = await API.job(jid); } catch(e){ return; }
   if (j.status === 'blocked') return location.href='/result.html?job='+jid;
-  try {
-    const [prev, rep] = await Promise.all([API.preview(jid), API.report(jid)]);
-    renderPaper(prev.items, prev.title);
-    renderRules(rep);
-  } catch(e){ document.getElementById('paper').innerHTML='<p class="text-error">预览加载失败</p>'; }
+  try { renderRules(await API.report(jid)); } catch(e){}
+  loadPages();
 }
 init();
 </script>

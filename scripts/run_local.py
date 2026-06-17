@@ -1,35 +1,41 @@
-"""本地跑运行期主链（终端版，类比旧原型 run.py）。
-用法: python scripts/run_local.py [输入docx] [模板id]
-默认: fixtures/论文（三稿）.docx + neau-bachelor-thesis-2025
+"""本地跑运行期主链（终端版）。结构标签缓存到 _labels_cache.json，
+改排版时直接复用、不再调 LLM；加 --fresh 强制重新识别。
+用法: python scripts/run_local.py [输入docx] [模板id] [--fresh]
 """
 import sys
 import io
+import json
 from pathlib import Path
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from engine import pipeline, config  # noqa: E402
+from engine import config, pipeline  # noqa: E402
+from engine import ingest as ING, classify as CLS, format_docx as FMT, report as REP  # noqa: E402
+from engine.gates import content_gate as CG  # noqa: E402
 
-inp = Path(sys.argv[1]) if len(sys.argv) > 1 else config.FIXTURES_DIR / "论文（三稿）.docx"
-tid = sys.argv[2] if len(sys.argv) > 2 else "neau-bachelor-thesis-2025"
+args = [a for a in sys.argv[1:] if a != "--fresh"]
+fresh = "--fresh" in sys.argv
+inp = Path(args[0]) if args else config.FIXTURES_DIR / "论文（三稿）.docx"
+tid = args[1] if len(args) > 1 else "neau-bachelor-thesis-2025"
 out = config.JOBS_DIR / "smoke_output.docx"
+cache = config.JOBS_DIR / "_labels_cache.json"
 
+print("输入:", inp.name, "| 模板:", tid, "| 复用缓存:", cache.exists() and not fresh)
+blocks = ING.ingest(str(inp))
+if cache.exists() and not fresh:
+    labels = {int(k): v for k, v in json.load(open(cache, encoding="utf-8")).items()}
+else:
+    print("  调 DeepSeek 识别结构…")
+    labels = CLS.classify(blocks)
+    json.dump(labels, open(cache, "w", encoding="utf-8"), ensure_ascii=False)
 
-def prog(stage, pct):
-    print(f"  [{pct:3d}%] {stage}")
+template = pipeline.load_template(tid)
+fmt = FMT.format_docx(blocks, labels, template, str(out))
+gate = CG.check(ING.all_text(blocks), str(out))
+rep = REP.build(blocks, labels, template, fmt, gate)
 
-
-print("输入:", inp.name, "| 模板:", tid)
-res = pipeline.run(str(inp), tid, str(out), progress=prog)
-print("\n题目:", res["title"][:50])
-print("区块数:", res["n_blocks"], "| 阻断:", res["blocked"])
-print("标签分布:", res["labels_hist"])
-rep = res["report"]
-print("\n报告状态:", rep["status"])
+print("题目:", fmt["title"][:50], "| 分节:", fmt.get("sections"))
 print("内容守恒:", rep["content"]["msg"])
-print("核对表格:")
-for c in rep["checks"]:
-    print(f"   [{c['result']}] {c['item']}: 期望 {c['expected']} -> 实际 {c['actual']}")
-print("待补项:", [p["title"] for p in rep["pending"]] or "无")
-print("\n成品:", out, "| 存在:", out.exists(), "| 大小:", out.stat().st_size if out.exists() else 0)
+print("核对:", [(c["item"], c["result"]) for c in rep["checks"]])
+print("成品:", out, "大小:", out.stat().st_size if out.exists() else 0)

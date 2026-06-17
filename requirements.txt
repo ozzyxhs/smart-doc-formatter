@@ -17,5 +17,8 @@ pyyaml
 # --- spec parsing (build-time compiler, P3; 农大 PDF) ---
 pypdf
 
-# Windows-only (already present): pywin32 for Word COM (.doc->.docx, visual QA render)
-# docx2pdf  # optional, visual QA (P2)
+# --- 真渲染预览 (P2)：PDF -> PNG ---
+pymupdf
+
+# docx -> PDF 走 PowerShell + Word COM 子进程（见 engine/render.py），不依赖 pywin32。
+# 需 Windows + 已装 Word。.doc 转 .docx 同理（fixtures 准备时用过）。

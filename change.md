@@ -61,3 +61,15 @@ P0（本提交）：
 ## 2026-06-17 · 补：格式②校名确认
 
 用户确认格式②（15毕业设计模板 + 马晓倩论文）= **新疆工程学院**。更新 `PLAN.md`(§2/§6) + `fixtures/README.md`。P3 建设期编译器将以此为第二格式。
+
+## 2026-06-17 · P2 封面 + 分节页码 + 真渲染预览（已渲染验证）
+
+用户反馈"封面/排版/分页全错、论文显示一页"。查实：真实导出 docx = 37 页（非一页），"一页"是 P1 那个假文本预览。本轮修三处：
+
+1. **分节重构** `format_docx`：切 封面 / 前置(摘要·目录) / 正文 三节。`docx_utils` 加 `set_page_number_format`(pgNumType) / `setup_title_header` / `setup_pagenum_footer` / `blank_header_footer`。验证(check_sections)：节0封面=无页眉无码；节1=lowerRoman start1；节2=decimal start1（正文重起）。
+2. **封面精确版式**：文种隶书一号·题目黑体二号·信息栏黑体小三·日期黑体小二，独立成一页，**封面不带页眉/页码**；丢掉源里的空行自己控间距→封面回到 1 页；空字段不编造。
+3. **真渲染预览**：`engine/render.py`（PowerShell+Word COM 导 PDF → pymupdf 转 PNG，缓存 `<job>/_pages/`，不依赖 pywin32）；api 加 `/jobs/{id}/pages` + `/page/{n}`；`web/workspace.html` 左栏改成真实页面图（37 张）滚动预览。
+
+附带补提交 P1 验证期的小改：`/api/jobs/demo`(试用样例)、工作台"试用样例"按钮、`/static` no-cache 中间件、静态资源 `?v=` 防缓存。删 `scripts/render_check.py`(坏的 pywin32 诊断脚本)；加 `scripts/check_sections.py`。requirements 加 `pymupdf`。
+
+**渲染验证**（论文三稿→农大）：封面 1 页且字体/无页眉无码全对；摘要页带双线页眉；37 页；内容守恒仍 ✅。待 P3：建设期"上传新规范"编译器（新疆工程学院第二格式）+ 结构闸/视觉QA/警示态。

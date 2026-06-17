@@ -17,6 +17,7 @@ const API = {
   async job(id) { return (await fetch('/api/jobs/' + id)).json(); },
   async report(id) { return (await fetch('/api/jobs/' + id + '/report')).json(); },
   async preview(id) { return (await fetch('/api/jobs/' + id + '/preview')).json(); },
+  async pages(id) { return (await fetch('/api/jobs/' + id + '/pages')).json(); },
   downloadUrl(id) { return '/api/jobs/' + id + '/download'; },
 };
 

@@ -154,6 +154,39 @@ def job_preview(jid):
     return {"title": j.get("title"), "items": items}
 
 
+@router.get("/jobs/{jid}/pages")
+def job_pages(jid):
+    """真·页面渲染（Word→PDF→PNG）。首次调用会渲染（数秒），之后走缓存。"""
+    with _lock:
+        j = _jobs.get(jid)
+    if not j or not j.get("out_path"):
+        raise HTTPException(404, "成品未就绪")
+    if j["status"] == "blocked":
+        return {"count": 0, "blocked": True, "pages": []}
+    from pathlib import Path
+    from engine import render
+    pages_dir = Path(j["out_path"]).parent / "_pages"
+    try:
+        n = render.render_pages(j["out_path"], pages_dir)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(500, f"渲染失败：{e}")
+    return {"count": n, "pages": [f"/api/jobs/{jid}/page/{i + 1}" for i in range(n)]}
+
+
+@router.get("/jobs/{jid}/page/{n}")
+def job_page(jid, n: int):
+    from pathlib import Path
+    with _lock:
+        j = _jobs.get(jid)
+    if not j or not j.get("out_path"):
+        raise HTTPException(404, "成品未就绪")
+    png = Path(j["out_path"]).parent / "_pages" / f"page{n}.png"
+    if not png.exists():
+        raise HTTPException(404, "该页未渲染")
+    return FileResponse(str(png), media_type="image/png")
+
+
 @router.get("/jobs/{jid}/download")
 def job_download(jid):
     with _lock:
