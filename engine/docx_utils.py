@@ -2,6 +2,7 @@
 
 eastAsia/latin 分绑、字符缩进、行单位段间距、页眉粗细双线、三线表、文档网格、页码域。
 """
+import re
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from docx.shared import Pt, Mm
@@ -15,11 +16,22 @@ ALIGN = {
 }
 
 
-def pt_of(template, size_name):
-    """中文字号名 -> pt。已是数字则原样返回。"""
+def pt_of(template, size_name, default=10.5):
+    """字号 -> pt。健壮：数字 / 中文字号名(小二…) / 'Npt'·'N磅'·'Npx'·'N' 字符串。
+    认不出兜底 default（默认五号 10.5），绝不抛错——编译/聊天产出的模板字号格式可能五花八门。
+    """
     if isinstance(size_name, (int, float)):
         return float(size_name)
-    return float(template["size_table"][size_name])
+    if size_name is None:
+        return default
+    s = str(size_name).strip()
+    tbl = template.get("size_table", {})
+    if s in tbl:
+        return float(tbl[s])
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*(?:pt|px|磅)?$", s)
+    if m:
+        return float(m.group(1))
+    return default
 
 
 def _get_or_add(parent, tag):

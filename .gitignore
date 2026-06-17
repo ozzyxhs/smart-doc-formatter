@@ -19,6 +19,9 @@ fixtures/*
 templates/assets/*
 !templates/assets/README.md
 
+# user-compiled templates (from 上传新规范, derived from user docs) — persist LOCALLY, don't publish/delete
+templates/custom-*.yaml
+
 # OS / editor
 .DS_Store
 Thumbs.db
