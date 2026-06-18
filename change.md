@@ -134,3 +134,7 @@ P0（本提交）：
 - `engine/template_norm.py`：`normalize()` 把**任意**模板深合并到一份完整默认骨架——**类型保护**（标量不能覆盖引擎需要的 dict，避免下标崩）、缺键补默认、size_table 补全。`pipeline.load_template` 统一 normalize。
 - `docx_utils` 取值全防御：`_fontname`(dict/类型不对→取字符串或跳过)、`_num`(带单位/dict→取数或默认)、`pt_of` 已健壮；`set_run_font`/`set_page`/`set_paragraph_format`/`set_double_bottom_border` 全部强转兜底，dict 再不会喂进 lxml。
 - **大自检** `scripts/test_templates.py`：一篇文章排过全部 4 模板（农大+xjit+2 个 USTC 编译），**全部 OK、内容守恒=True**。之前 3 个崩溃根除。
+
+## 2026-06-18 · 自检"矛盾"项一键按来源修正
+
+每条「与来源矛盾」旁加按钮「一键按来源修正」：点一下复用 `/api/chat`（带 tid 上下文 + 改规则能力），让模型严格按来源把那条规则改对、应用到模板、刷新摘要卡片——用户不用自己打字。事件委托在 `#audit` 上，存活于折叠/展开重渲染。验证：mock 矛盾项（正文应五号）→ 点按钮 → applied、摘要刷新为"宋体五号"、按钮变"已按来源修正"。

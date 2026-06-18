@@ -130,10 +130,13 @@ function render(s){
   else { badge.textContent='全部一致'; badge.className='font-label-caps px-3 py-1 rounded-full bg-success/15 text-success'; }
   document.getElementById('audit-summary').innerHTML = a.error ? `<span class="text-secondary">${esc(a.error)}</span>` :
     `<span class="text-error font-body-bold">✗ ${wrong.length} 矛盾</span> · <span class="text-warning">⚪ ${missing.length} 待补</span> · <span class="text-warning">◐ ${infer.length} 推断</span> · <span class="text-success">✓ ${ok.length} 一致</span>`;
-  const itemHtml=i=>{const[c,l]=AUD[i.status]||AUD.infer; return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-12">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}</div></li>`;};
+  const itemHtml=i=>{const[c,l]=AUD[i.status]||AUD.infer;
+    const fix = i.status==='wrong' ? `<button class="fix-btn mt-1 inline-flex items-center gap-1 text-primary text-sm font-body-bold hover:underline" data-field="${esc(i.field)}" data-source="${esc(i.source||i.note||'')}"><span class="material-symbols-outlined text-sm">auto_fix_high</span>一键按来源修正</button>` : '';
+    return `<li class="flex gap-3 items-start p-2 border-b border-surface-variant"><span class="text-label-caps ${c} shrink-0 w-12">${l}</span><div><span class="font-body-bold">${esc(i.field)}</span> <span class="text-secondary text-sm">${esc(i.yaml||'')}</span>${i.note?`<p class="text-secondary text-sm">${esc(i.note)}</p>`:''}${fix}</div></li>`;};
   const problems=[...wrong,...missing,...infer];
   const auditUl=document.getElementById('audit');
   auditUl.innerHTML = problems.length ? problems.map(itemHtml).join('') : '<li class="text-success flex items-center gap-2"><span class="material-symbols-outlined">verified</span>全部与来源一致。</li>';
+  auditUl.onclick = (e)=>{ const b=e.target.closest('.fix-btn'); if(b) handleFix(b); };
   const tog=document.getElementById('audit-toggle');
   if(ok.length){ let shown=false; tog.classList.remove('hidden'); tog.textContent='展开 '+ok.length+' 项一致';
     tog.onclick=()=>{ shown=!shown; auditUl.innerHTML=(shown?[...problems,...ok]:problems).map(itemHtml).join(''); tog.textContent=shown?'收起一致项':('展开 '+ok.length+' 项一致'); }; }
@@ -169,5 +172,20 @@ async function sendChat(){
 }
 document.getElementById('chat-send').onclick=sendChat;
 document.getElementById('chat-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); sendChat(); } });
+
+// 自检"矛盾"项的一键按来源修正（复用 /api/chat 的改规则能力）
+async function handleFix(b){
+  const field=b.dataset.field, source=b.dataset.source||'';
+  if(!currentTid){ return; }
+  b.disabled=true; b.innerHTML='<span class="material-symbols-outlined text-sm animate-spin">progress_activity</span> 修正中…';
+  try{
+    const prompt=`请严格按来源修正这条规则：字段「${field}」。来源要求：${source}。把模板改对，只动这一条，并给出 edits。`;
+    const r=await API.chat({tid:currentTid, messages:[{role:'user',content:prompt}]});
+    if(r.applied&&r.applied.length){
+      b.outerHTML=`<span class="text-success text-sm inline-flex items-center gap-1"><span class="material-symbols-outlined text-sm">check_circle</span>已按来源修正（${r.applied.length} 处）</span>`;
+      if(r.summary) renderSummaryCards(r.summary);
+    } else { b.disabled=false; b.innerHTML='<span class="material-symbols-outlined text-sm">auto_fix_high</span> 未改动，可开聊天手动说'; }
+  }catch(e){ b.disabled=false; b.textContent='修正失败，重试'; }
+}
 </script>
 </body></html>
