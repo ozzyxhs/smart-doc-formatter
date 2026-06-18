@@ -95,7 +95,18 @@ function render(rep) {
   REPORT = rep;
   if (rep.status === 'blocked') renderBlockedBanner(rep);
   else {
-    document.getElementById('banner-sub').textContent = rep.summary;
+    const cls = rep.classification;
+    if (cls && cls.degraded) {
+      // 降级但仍交付：橙色警示，别让它在界面上接近静默（坐实"无静默降质"）
+      document.getElementById('banner').className = 'glass-panel rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-l-4 border-l-warning';
+      document.getElementById('banner-icon-wrap').className = 'h-12 w-12 rounded-full bg-warning/15 flex items-center justify-center';
+      document.getElementById('banner-icon').textContent = 'warning';
+      document.getElementById('banner-icon').className = 'material-symbols-outlined text-warning text-3xl fill';
+      document.getElementById('banner-title').textContent = '已生成，但结构识别降级';
+      document.getElementById('banner-sub').textContent = cls.msg;
+    } else {
+      document.getElementById('banner-sub').textContent = rep.summary;
+    }
     document.getElementById('dl-doc').href = API.downloadUrl(jid);
   }
   // 改动清单
@@ -139,7 +150,9 @@ function render(rep) {
 }
 document.getElementById('dl-report').onclick = ()=>{
   if (!REPORT) return;
-  let txt = `合规报告\n${REPORT.summary}\n\n【内容守恒】${REPORT.content.msg}\n\n【改动清单】\n`;
+  let txt = `合规报告\n${REPORT.summary}\n\n【内容守恒】${REPORT.content.msg}\n\n`;
+  if (REPORT.classification && REPORT.classification.degraded) txt += `【结构识别】${REPORT.classification.msg}\n\n`;
+  txt += `【改动清单】\n`;
   REPORT.changes.forEach(c=> txt += ` - ${c.what}：${c.detail}\n`);
   txt += `\n【核对清单】\n`;
   REPORT.checks.forEach(c=> txt += ` - ${c.item}：期望 ${c.expected} / 实际 ${c.actual} [${c.result}]\n`);

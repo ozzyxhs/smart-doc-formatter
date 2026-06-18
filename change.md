@@ -214,3 +214,12 @@ P0（本提交）：
 - **② 补 `scripts/run_local.py`**（C1 改 `classify` 契约时**漏掉的调用方**，会把整个 dict 当 labels 传坏）：改 `cl = classify(...); labels = cl["labels"]`、打印置信度；缓存仍只存 labels（兼容旧 `_labels_cache.json`）。离线非 fresh **实测跑通**（复用缓存 → 格式 → 内容守恒 ok → 出 40KB 成品）。
 - 本地（CI 方式）：`compileall` 0 错、**pytest 6 passed**。
 - 顺手开 issue：收紧 `fallback_useful`（当前"有一个 heading 就算可用"偏粗，应按 heading/body 数量阈值）——非阻断 merge，单列。
+
+## 2026-06-18 · PR #23 review 第二轮：坐实"无静默降质" + 补 409 直测
+
+reviewer 第二轮三个小刺（前两个直接关系退役线 a）：
+- **① 降级但仍交付时，前端不再接近静默**：`web/result.html` 在 `classification.degraded && 未阻断` 时，把状态横幅翻成橙色警示（"已生成，但结构识别降级" + `classification.msg`），下载的「合规报告.txt」也写入【结构识别】段。**这才真正坐实退役线 (a)**——之前 degraded 数据只在 JSON 里、界面看不到、报告也没写。
+- **② 下载 409 直测**：新增 `test_download_409_message_distinguishes_block_reason`，直接断言 `job_download` 对 `block_reason=classification`→"结构识别"、`=content`→"内容守恒" 两种文案（之前只测了 pipeline 的 `block_reason`，api 分流无回归网）。
+- **③ `run_local.py` 缓存分支补打印**："复用缓存 labels（置信度未知，--fresh 才报置信度）"——之前"输出能看到置信度"只对 `--fresh` 成立。
+- **#24（收紧 `fallback_useful`）按 reviewer 意见不塞本 PR**，留作单独带测试的改动。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 7 passed**；`run_local` 非 fresh 离线实跑确认新打印。

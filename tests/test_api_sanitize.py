@@ -29,3 +29,20 @@ def test_safe_id_accepts_clean_rejects_dirty():
     for bad in ("../x", "a/b", r"..\x", "a.b", "x.yaml", "", None, "a b", "$(x)"):
         with pytest.raises(HTTPException):
             api._safe_id(bad, "x")
+
+
+def test_download_409_message_distinguishes_block_reason(monkeypatch):
+    """下载 409 文案要按 block_reason 分流（防 result.html / api 文案回归到统一'内容对不上'）。"""
+    monkeypatch.setitem(api._jobs, "job_cls_x", {
+        "status": "blocked", "out_path": "dummy.docx",
+        "report": {"block_reason": "classification"}})
+    with pytest.raises(HTTPException) as e:
+        api.job_download("job_cls_x")
+    assert e.value.status_code == 409 and "结构识别" in e.value.detail
+
+    monkeypatch.setitem(api._jobs, "job_content_x", {
+        "status": "blocked", "out_path": "dummy.docx",
+        "report": {"block_reason": "content"}})
+    with pytest.raises(HTTPException) as e2:
+        api.job_download("job_content_x")
+    assert e2.value.status_code == 409 and "内容守恒" in e2.value.detail

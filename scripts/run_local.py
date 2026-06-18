@@ -26,6 +26,7 @@ print("输入:", inp.name, "| 模板:", tid, "| 复用缓存:", cache.exists() a
 blocks = ING.ingest(str(inp))
 if cache.exists() and not fresh:
     labels = {int(k): v for k, v in json.load(open(cache, encoding="utf-8")).items()}
+    print("  结构识别: 复用缓存 labels（置信度未知，--fresh 才会重判并报置信度）")
 else:
     print("  调 DeepSeek 识别结构…")
     cl = CLS.classify(blocks)
