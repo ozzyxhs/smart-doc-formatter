@@ -1,24 +1,26 @@
+# 依赖已 pin（C4）：CI / 干净 clone 装出确定环境。升级时改这里的版本号 + 跑 pytest。
+
 # --- web ---
-fastapi
-uvicorn[standard]
-python-multipart        # file uploads
+fastapi==0.136.3
+uvicorn[standard]==0.49.0
+python-multipart==0.0.32        # file uploads
 
 # --- engine: docx read/write + oxml patches ---
-python-docx
-lxml
+python-docx==1.2.0
+lxml==6.1.1
 
 # --- LLM (DeepSeek via OpenAI-compatible client) ---
-openai
-python-dotenv
+openai==2.41.1
+python-dotenv==1.2.2
 
 # --- template library ---
-pyyaml
+pyyaml==6.0.3
 
 # --- spec parsing (build-time compiler, P3; 农大 PDF) ---
-pypdf
+pypdf==6.13.2
 
 # --- 真渲染预览 (P2)：PDF -> PNG ---
-pymupdf
+pymupdf==1.27.2.3
 
 # docx -> PDF 走 PowerShell + Word COM 子进程（见 engine/render.py），不依赖 pywin32。
 # 需 Windows + 已装 Word。.doc 转 .docx 同理（fixtures 准备时用过）。

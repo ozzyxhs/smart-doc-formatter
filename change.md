@@ -162,3 +162,64 @@ P0（本提交）：
 - 页码方案读 `template['pagination']`；change_log 改通用（按模板实际值）。
 - **大自检**：农大+xjit 两模板均排版 OK、内容守恒=True、报告/复审正常。grep 审计：引擎残留写死值仅国标事实（size_table / 三线表 1.5·0.5pt）+ 机制（Word 默认边距 / border art 名），非格式判断。
 - **农大改编译生成（最后一处手写违规清掉）**：`template_norm.SCHEMA_HINT`（结构骨架，只描述字段嵌套/类型/取值范围，**无任何格式值**）引导编译器；用编译器从 `农大格式要求.pdf`（13页9903字符，有文字层）让 DeepSeek 抽出 YAML，**替换我手写那份**。渲染验证：封面校名图+隶书一号+黑体二号+信息栏左缩进5字符，与 §2.3 一致；内容守恒 OK、31 页。`cover.logo.asset` 文件路径 + `meta.spec_source_json` 是机制配置（指向哪个文件），非格式判断，由我接。**至此仓库零手写模板、引擎零自造格式值，格式全由 DeepSeek 产出。**
+
+## 2026-06-18 · C0 还债首笔：离线测试网 + CI（可复现性）
+
+回应外部 review（commit `ad0673a`）"测试不可复现 / 无 CI"的硬伤——搭最小验证网，让「干净 clone 即可复现」成立：
+- **`tests/synthetic.py`**：代码生成最小合成论文 docx（封面槽位 / 摘要 / 一级标题 / 正文 / 三线表 / 参考文献），**不入库二进制、可复现**。TOC、封面精排等留待各自元素 issue 附自己的 golden（金标随元素长）。
+- **`tests/test_pipeline_offline.py`**：离线端到端——打桩 `llm.chat/chat_json`（**真触网即硬报错，不许静默**）、`classify.classify`（确定性标签）、`format_review.review`，跑 `pipeline.run` 全链，断言 **产出 docx + 内容守恒 ok + 不阻断**。**不需要 API key、不依赖本机 fixtures**，取代依赖 `fixtures/论文（三稿）.docx` 的旧 `scripts/test_templates.py`。
+- **`.github/workflows/ci.yml`**：push / PR 跑 `compileall`（杜绝坏代码进 main）+ `pytest`。
+- 本地验证：`compileall` 0 错；`pytest` 1 passed（1.2s）。
+- **CI 在干净 ubuntu runner 上首跑即抓到一个本机隐藏的 bug**：bare `pytest` 从根目录会误收集 `scripts/test_templates.py`（匹配 `test_*.py`、import 即有副作用 + 依赖本机 fixture）→ `ValueError: I/O operation on closed file`。修：加 `pytest.ini`（`testpaths = tests`）+ 改名 `scripts/test_templates.py → selfcheck_templates.py`（它是开发自检脚本，不是 pytest 测试）。**这正是测试网的意义——本机绿、干净 runner 抓错。**
+- 这是 C0。后续：C1 fail-loud（分类失败显式降级 / 阻断，不静默）、C2 输入消毒（文件名 + tid 白名单）、C3 README 现状 / 计划分离、C4 MIT LICENSE + 依赖 pin。
+
+## 2026-06-18 · C1 还债：分类失败 fail-loud（命门 · 不再静默套正文）
+
+回应 review 硬伤 #3（静默降级最危险）。按共识"对置信度诚实 + fail-loud"：
+- **`classify.classify` 改契约**：不再静默返 `{}`，改返 `{labels, confidence, failed_batches, total_batches}`。`confidence`：`full`（全成功）/ `partial`（部分批次失败、已样式兜底）/ `fallback`（全失败、纯样式兜底）；`_do_batch` 显式回报每批 ok。
+- **`pipeline`**：把置信度翻成大白话进 `report["classification"]`（含 `degraded`/`blocked`/`msg`），**显著告知用户**；并据此阻断——`fallback` 且样式兜底也无结构（无 heading）→ **阻断**（`blocked=True`、`status=blocked`、下载 409），不静默交付结构错的成品；样式兜底可用 → 仍交付但标 `degraded`。
+- **铁律落地**：永不把"降级跑"表现成"干净跑"。
+- **测试 +2**：`test_llm_failure_degrades_loudly_not_silently`（有标题样式 → 交付但 degraded + ⚠）、`test_llm_failure_blocks_when_fallback_useless`（无样式 → 阻断）；happy-path 加断言 `confidence=full`。合成 fixture 加 `build_min_with_heading_style` / `build_min_unstyled`。
+- 同步更新 `scripts/selfcheck_templates.py` 与 happy-path stub 到新契约。
+- 本地（CI 方式 bare pytest）：`compileall` 0 错、**pytest 3 passed**。
+
+## 2026-06-18 · C2 还债：输入消毒（卫生级 · 防目录穿越）
+
+回应 review 硬伤 #4（安全边界草）。按定的"本机单用户 / 卫生级"范围（只消毒、不加鉴权）：
+- **统一白名单**：新增 `app/api._safe_filename`（只取文件名本身、兼顾 `/` 与 `\` 分隔符）+ `_safe_id`（`^[A-Za-z0-9_-]+$`，非法 400）。
+- **四个入口全上**：`create_job`（文件名 + `template_id`）、`create_spec`（文件名）、`/chat`（`tid`，之前完全没校验）、`delete_template`（改用同一把白名单，消除"各写各的"）。`template_id` / `tid` 会拼成模板路径，落盘 / 读盘前必过消毒。
+- **测试 +2**（`test_api_sanitize`）：`../`、`..\`、`a/b/c` 等被剥成纯文件名；`x.yaml` / `a.b` / 空 / `$(x)` 等 id 被拒。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 5 passed**。
+- 注：`chat` 让模型回写模板 YAML 仍保留（本机单用户＝特性）；若转公开 / 多用户，另开硬化 issue（鉴权 + sandbox + 锁 chat 写盘 + 限流）。
+
+## 2026-06-18 · C3 还债：README 契约（现状 / 计划分离）
+
+回应 review 硬伤 #1（README 过度承诺＝对 public repo 的交付契约违约）。重写 README：
+- 新增「现在能做什么」状态表，逐功能标 `✅现在` / `🚧在建(#)` / `🗺️规划`——读者一眼判定可否当下使用。
+- 纠正过度承诺：待排版输入只 `.docx`（pdf 标 🚧 #13、多格式 #14）；"双校验"里自动回炉标 🚧（#6，当前格式复审只出一次性报告）；内容守恒注明是文本残差、图片 / 公式待元素落地。
+- 补「跑起来」（强调别带 `--reload`）、平台说明（`.doc` / 渲染需 Windows+Word）、License=MIT、`change.md` 链接。
+- 愿景（关键设计）保留，但与现状分栏，不再混为一谈。
+
+## 2026-06-18 · C4 还债：MIT LICENSE + 依赖 pin（收尾）
+
+回应 review 硬伤 #6（无 license＝非开源 / `requirements` 不 pin）：
+- **LICENSE**：补 MIT（Copyright 2026 ozzyxhs）。README「可持续增长的模板库」第一次有法律地兑现——之前无 license ＝保留所有权利，别人 clone 即侵权。
+- **`requirements.txt` 直接依赖全 pin `==`**：fastapi 0.136.3 / uvicorn 0.49.0 / python-docx 1.2.0 / lxml 6.1.1 / openai 2.41.1 / pymupdf 1.27.2.3 …（本机实测版本）。CI / clone 装出确定环境；升级一并改这里 + 跑测试。
+- **至此 C0–C4 全部落地**，PR #23 过四条退役线（a 不静默降质 / b 无脏输入落地 / c README 属实 / d 干净机 clone && CI 绿）。
+
+## 2026-06-18 · PR #23 review 修订：区分阻断原因 + 补漏改的 classify 调用方
+
+合并前 reviewer 提的两个 must-fix：
+- **① 阻断原因区分**（之前前端 / 下载对"分类阻断"也硬写"内容对不上"，会误导——分类失败时内容可能没丢）：`pipeline` 给 report 加 `block_reason`（`content` / `classification` / `None`，内容守恒失败优先）；`web/result.html` 阻断横幅按原因显示（分类→"已拦下：结构识别不可靠"+`classification.msg`）；`app/api.py` 下载 409 按原因返回不同文案（分类→"结构识别不可靠，已拒交"）。**+1 测试**（内容阻断 `block_reason=content`），并给分类阻断 / happy-path 补 `block_reason` 断言。
+- **② 补 `scripts/run_local.py`**（C1 改 `classify` 契约时**漏掉的调用方**，会把整个 dict 当 labels 传坏）：改 `cl = classify(...); labels = cl["labels"]`、打印置信度；缓存仍只存 labels（兼容旧 `_labels_cache.json`）。离线非 fresh **实测跑通**（复用缓存 → 格式 → 内容守恒 ok → 出 40KB 成品）。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 6 passed**。
+- 顺手开 issue：收紧 `fallback_useful`（当前"有一个 heading 就算可用"偏粗，应按 heading/body 数量阈值）——非阻断 merge，单列。
+
+## 2026-06-18 · PR #23 review 第二轮：坐实"无静默降质" + 补 409 直测
+
+reviewer 第二轮三个小刺（前两个直接关系退役线 a）：
+- **① 降级但仍交付时，前端不再接近静默**：`web/result.html` 在 `classification.degraded && 未阻断` 时，把状态横幅翻成橙色警示（"已生成，但结构识别降级" + `classification.msg`），下载的「合规报告.txt」也写入【结构识别】段。**这才真正坐实退役线 (a)**——之前 degraded 数据只在 JSON 里、界面看不到、报告也没写。
+- **② 下载 409 直测**：新增 `test_download_409_message_distinguishes_block_reason`，直接断言 `job_download` 对 `block_reason=classification`→"结构识别"、`=content`→"内容守恒" 两种文案（之前只测了 pipeline 的 `block_reason`，api 分流无回归网）。
+- **③ `run_local.py` 缓存分支补打印**："复用缓存 labels（置信度未知，--fresh 才报置信度）"——之前"输出能看到置信度"只对 `--fresh` 成立。
+- **#24（收紧 `fallback_useful`）按 reviewer 意见不塞本 PR**，留作单独带测试的改动。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 7 passed**；`run_local` 非 fresh 离线实跑确认新打印。

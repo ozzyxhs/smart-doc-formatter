@@ -50,19 +50,31 @@ def _style_fallback(b):
 
 
 def classify(blocks, *, batch_size=90):
+    """返回 {labels, confidence, failed_batches, total_batches}。
+
+    confidence: full=全部批次 LLM 成功 / partial=部分批次失败(已样式兜底) / fallback=全部失败(纯样式兜底)。
+    **绝不静默**：LLM 失败由 confidence 显式上报，调用方据此降级或阻断，而不是装作成功。
+    """
     paras = [b for b in blocks if b["kind"] == "paragraph"]
     batches = [paras[i:i + batch_size] for i in range(0, len(paras), batch_size)]
-    labels = {}
     if not batches:
-        return labels
+        return {"labels": {}, "confidence": "full", "failed_batches": 0, "total_batches": 0}
+    labels = {}
+    failed = 0
     # 批次并发（v4-pro 单批较慢，并发把总耗时压到 ~单批）
     with ThreadPoolExecutor(max_workers=min(8, len(batches))) as ex:
-        for r in ex.map(_do_batch, batches):
-            labels.update(r)
-    return labels
+        for res, ok in ex.map(_do_batch, batches):
+            labels.update(res)
+            if not ok:
+                failed += 1
+    total = len(batches)
+    confidence = "full" if failed == 0 else ("fallback" if failed == total else "partial")
+    return {"labels": labels, "confidence": confidence,
+            "failed_batches": failed, "total_batches": total}
 
 
 def _do_batch(batch):
+    ok = True
     try:
         out = llm.chat_json([
             {"role": "system", "content": _SYS},
@@ -70,10 +82,11 @@ def _do_batch(batch):
         ], model=config.DEEPSEEK_CLASSIFY_MODEL, max_tokens=4000)
     except Exception:
         out = {}
+        ok = False                                # LLM 失败：显式上报，绝不静默
     res = {}
     for b in batch:
         lab = out.get(str(b["idx"])) or out.get(b["idx"])
         if lab not in LABELS:
             lab = _style_fallback(b)              # LLM 缺/非法 -> 确定性兜底
         res[b["idx"]] = lab
-    return res
+    return res, ok
