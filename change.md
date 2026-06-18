@@ -170,4 +170,5 @@ P0（本提交）：
 - **`tests/test_pipeline_offline.py`**：离线端到端——打桩 `llm.chat/chat_json`（**真触网即硬报错，不许静默**）、`classify.classify`（确定性标签）、`format_review.review`，跑 `pipeline.run` 全链，断言 **产出 docx + 内容守恒 ok + 不阻断**。**不需要 API key、不依赖本机 fixtures**，取代依赖 `fixtures/论文（三稿）.docx` 的旧 `scripts/test_templates.py`。
 - **`.github/workflows/ci.yml`**：push / PR 跑 `compileall`（杜绝坏代码进 main）+ `pytest`。
 - 本地验证：`compileall` 0 错；`pytest` 1 passed（1.2s）。
+- **CI 在干净 ubuntu runner 上首跑即抓到一个本机隐藏的 bug**：bare `pytest` 从根目录会误收集 `scripts/test_templates.py`（匹配 `test_*.py`、import 即有副作用 + 依赖本机 fixture）→ `ValueError: I/O operation on closed file`。修：加 `pytest.ini`（`testpaths = tests`）+ 改名 `scripts/test_templates.py → selfcheck_templates.py`（它是开发自检脚本，不是 pytest 测试）。**这正是测试网的意义——本机绿、干净 runner 抓错。**
 - 这是 C0。后续：C1 fail-loud（分类失败显式降级 / 阻断，不静默）、C2 输入消毒（文件名 + tid 白名单）、C3 README 现状 / 计划分离、C4 MIT LICENSE + 依赖 pin。
