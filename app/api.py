@@ -40,6 +40,17 @@ def list_templates():
     return out
 
 
+@router.delete("/templates/{tid}")
+def delete_template(tid):
+    if not re.match(r"^[A-Za-z0-9_-]+$", tid or ""):     # 防路径穿越
+        raise HTTPException(400, "非法规范 id")
+    p = config.TEMPLATES_DIR / f"{tid}.yaml"
+    if not p.exists():
+        raise HTTPException(404, "无此规范")
+    p.unlink()
+    return {"ok": True, "deleted": tid}
+
+
 def _run_spec(sid, path, name, institution, doc_type):
     try:
         res = compiler.compile_and_save(path, name=name, institution=institution, doc_type=doc_type)

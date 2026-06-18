@@ -108,9 +108,10 @@ _SYS = (
 
 
 def _extract_yaml(text, facts, *, name, institution, doc_type):
-    example = (config.TEMPLATES_DIR / "neau-bachelor-thesis-2025.yaml").read_text(encoding="utf-8")
+    from . import template_norm
+    example = yaml.safe_dump(template_norm.DEFAULTS, allow_unicode=True, sort_keys=False)
     user = (
-        f"【schema 样例（农大，仅示意结构，不要照抄数值）】\n{example}\n\n"
+        f"【schema 样例（引擎标准模板结构，仅示意结构，不要照抄数值）】\n{example}\n\n"
         f"【新规范】name={name} institution={institution} doc_type={doc_type}\n\n"
         f"【样本实际格式 facts（来自文件，最可信）】\n{json.dumps(facts, ensure_ascii=False) if facts else '（无，纯文本规范）'}\n\n"
         f"【规范/样本文本】\n{text}"

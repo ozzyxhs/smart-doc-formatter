@@ -1,6 +1,11 @@
 /* 共用 API 助手 + 小工具。无框架，原生 fetch。 */
 const API = {
   async templates() { return (await fetch('/api/templates')).json(); },
+  async deleteTemplate(id) {
+    const r = await fetch('/api/templates/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || '删除失败');
+    return r.json();
+  },
   async createJob(file, templateId) {
     const fd = new FormData();
     fd.append('file', file);

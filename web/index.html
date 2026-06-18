@@ -84,6 +84,7 @@ function renderTemplates() {
       <div class="h-20 bg-surface-variant flex items-center justify-center relative overflow-hidden">
         <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg,#b32a03 0,#b32a03 1px,transparent 1px,transparent 10px);"></div>
         <span class="material-symbols-outlined text-4xl text-on-surface-variant z-10">school</span>
+        <button class="del-btn absolute top-1.5 right-1.5 z-20 w-7 h-7 rounded-full bg-surface-container-lowest/90 border border-outline-variant flex items-center justify-center text-secondary hover:text-error hover:border-error opacity-0 group-hover:opacity-100 transition-opacity" data-id="${t.id}" title="删除此规范"><span class="material-symbols-outlined text-base">delete</span></button>
       </div>
       <div class="p-4 flex flex-col gap-1">
         <h4 class="text-body-bold font-body-bold text-on-surface group-hover:text-primary transition-colors">${esc(t.name)}</h4>
@@ -92,6 +93,17 @@ function renderTemplates() {
     </div>`).join('');
   tplList.querySelectorAll('.tpl-card').forEach(el =>
     el.onclick = () => { selectedId = el.dataset.id; syncPicked(); renderTemplates(); });
+  tplList.querySelectorAll('.del-btn').forEach(el => el.onclick = async (e) => {
+    e.stopPropagation();
+    const id = el.dataset.id, t = templates.find(x => x.id === id);
+    if (!confirm('删除规范「' + (t ? t.name : id) + '」？此操作不可撤销。')) return;
+    try {
+      await API.deleteTemplate(id);
+      templates = templates.filter(x => x.id !== id);
+      if (selectedId === id) selectedId = templates[0] ? templates[0].id : null;
+      syncPicked(); renderTemplates();
+    } catch (err) { showErr('删除失败：' + (err.message || '')); }
+  });
 }
 function syncPicked() {
   const t = templates.find(x => x.id === selectedId);
