@@ -23,6 +23,44 @@ DEFAULTS = {
 }
 
 
+# 结构骨架（给编译器当 schema 引导）：只描述"有哪些字段、怎么嵌套、值是什么类型/取值范围"，
+# **不给任何具体格式值**——具体填什么由 DeepSeek 读规范定。这是引擎的数据契约（程序员的活）。
+SCHEMA_HINT = """\
+meta: {id, name, institution, degree_level, doc_type: thesis|design, spec_version, source, min_word_count: {thesis: 数, design: 数}}
+size_table: {中文字号名: pt数, …}   # 国标对照，原样保留
+page: {size, width_mm, height_mm, margins_mm: {top,bottom,left,right}, grid: {type, lines_per_page, chars_per_line}}
+fonts: {default_cn, default_latin, heading_cn}
+header: {margin_mm, content: thesis_title, font: {cn, latin, size: 中文字号名, align: center|left|right}, border_below: {style, upper_pt, lower}}   # 无页眉线就别给 border_below
+footer: {margin_mm, font: {cn, latin, size, align}, page_number: {format: 形如 '- n -'}}
+pagination: {cover_titlepage: none|roman|arabic, frontmatter: roman|arabic, body: roman|arabic}
+cover:
+  logo: {asset, width_mm, height_mm}        # 有校名图才给
+  align, line_spacing
+  blank: {font, size}                        # 空白行用的字体
+  blanks: {after_doctype: 行数, after_title: 行数, after_fields: 行数}
+  slots:                                     # 封面各要素的格式
+    doctype|title_cn|title_en|field|date|other: {font, size: 中文字号名, bold: true|false, align, first_line_indent_chars}
+body_paragraph: {font: {cn, latin, size}, first_line_indent_chars, align: justify|left, line_spacing: single|...}
+headings:
+  level_1..5: {numbering, name, font_cn, latin, size, bold, first_line_indent_chars, space_before_lines, space_after_lines, line_spacing, page_break_before: true|false, align}
+chinese_abstract:
+  title: {text, font, size, align}
+  body: {font, size, first_line_indent_chars, line_spacing, word_count}
+  keywords: {prefix, prefix_bold, position, separator, count, font, size}
+english_abstract: {title: {text, font, size, align}, body: {...}, keywords: {...}}
+table_of_contents:
+  title: {text, font, size, align}
+  number_letter_font, levels, line_spacing, leader
+  level_1..3: {font, size, bold, indent_chars}
+tables: {style: three_line|…, border: {top_bottom_pt, middle_pt}, numbering, title: {position, font, size, latin}, content: {font, latin, size, align}, notes: {...}}
+figures: {numbering, title: {position, font, size, latin}, content_size}
+citation: {standard, style, format, examples, restriction}
+references: {title: {text, same_as: heading_1}, body: {same_as: body_paragraph, numbering}, requirements: {thesis: {min_total, min_foreign}, design: {min_total}}}
+acknowledgements: {title: {text, same_as: heading_1}, body: {same_as: body_paragraph}}
+appendix: {numbering, internal}
+"""
+
+
 def _deep_merge(base, over):
     """深合并；类型保护：默认是 dict 而覆盖值不是 dict 时，保留默认 dict（丢弃畸形覆盖），
     避免编译模板把标量塞到引擎需要 dict 的位置导致下标崩。"""
