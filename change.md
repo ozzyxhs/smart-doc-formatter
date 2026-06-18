@@ -199,3 +199,10 @@ P0（本提交）：
 - 纠正过度承诺：待排版输入只 `.docx`（pdf 标 🚧 #13、多格式 #14）；"双校验"里自动回炉标 🚧（#6，当前格式复审只出一次性报告）；内容守恒注明是文本残差、图片 / 公式待元素落地。
 - 补「跑起来」（强调别带 `--reload`）、平台说明（`.doc` / 渲染需 Windows+Word）、License=MIT、`change.md` 链接。
 - 愿景（关键设计）保留，但与现状分栏，不再混为一谈。
+
+## 2026-06-18 · C4 还债：MIT LICENSE + 依赖 pin（收尾）
+
+回应 review 硬伤 #6（无 license＝非开源 / `requirements` 不 pin）：
+- **LICENSE**：补 MIT（Copyright 2026 ozzyxhs）。README「可持续增长的模板库」第一次有法律地兑现——之前无 license ＝保留所有权利，别人 clone 即侵权。
+- **`requirements.txt` 直接依赖全 pin `==`**：fastapi 0.136.3 / uvicorn 0.49.0 / python-docx 1.2.0 / lxml 6.1.1 / openai 2.41.1 / pymupdf 1.27.2.3 …（本机实测版本）。CI / clone 装出确定环境；升级一并改这里 + 跑测试。
+- **至此 C0–C4 全部落地**，PR #23 过四条退役线（a 不静默降质 / b 无脏输入落地 / c README 属实 / d 干净机 clone && CI 绿）。
