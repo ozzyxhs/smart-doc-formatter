@@ -151,3 +151,14 @@ P0（本提交）：
 
 用户"删除后整个界面打不开"。**根因**：启动带 `--reload` 且监视整个项目目录——删模板 / 编译规范 / 排版都会往 `templates/`、`_jobs/` **写文件**，uvicorn 误判"代码变了"而重启，重启窗口里界面就打不开（甚至中断在跑的任务）。
 **修**：去掉 `--reload`（正常使用全程稳定；我改代码时手动重启即可）。**运行命令更正为 `python -m uvicorn app.main:app`（不带 --reload）**。验证：删模板后 `/health` 仍 ok、服务不掉；工作台正常。
+
+## 2026-06-18 · 落实「格式不经我手」底层原则——引擎全清存量
+
+用户立硬原则（见记忆 `format-from-llm-only`）：模板/格式相关一切由 API 产出，Claude 只造机器、不碰格式判断值。清掉引擎里我自造的格式：
+- **`format_docx._spec_for` 重写** = 「结构标签 → 模板对应段 → `_read_style`」：摘要/英文摘要/目录/参考文献/致谢/图表题等格式**全读模板那一段**（DeepSeek 抽的），不再自造黑体小二/五号等值；`_emit_cover`/`_add_toc_item`/`_add_table` 同理。**字段缺 → 不套（留 Word 默认）**，由自检标"待补"。`_read_style` 做键名别名兼容 + same_as 引用。
+- **`template_norm.DEFAULTS` 砍光格式值**：只剩 size_table（国标字号→pt 事实）+ A4 尺寸 + 空结构占位（防崩）。删掉所有边距/字体/字号/封面槽/标题样式等判断值。
+- **`docx_utils`**：`set_page` 缺边距则不设（留 Word 默认）；`setup_title_header/footer` 只读模板、双线只有 `border_below` 存在才加。
+- **`report.py`**：删掉写死的「38/48/24/24」「宋体五号」假核对（之前恒 pass），改为只列规范给了硬指标的项（字数/文献）。
+- 页码方案读 `template['pagination']`；change_log 改通用（按模板实际值）。
+- **大自检**：农大+xjit 两模板均排版 OK、内容守恒=True、报告/复审正常。grep 审计：引擎残留写死值仅国标事实（size_table / 三线表 1.5·0.5pt）+ 机制（Word 默认边距 / border art 名），非格式判断。
+- 待办：农大改编译生成（需给编译器一份结构骨架引导 DeepSeek 输出嵌套）。

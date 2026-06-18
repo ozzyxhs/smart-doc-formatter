@@ -16,58 +16,74 @@ _FRONT_MARKERS = {"abstract_cn_title", "abstract_en_title", "abstract_cn_body",
 _FIELD_KW = ("学院", "专业", "班级", "姓名", "学号", "指导教师", "研究方向", "导师")
 
 
+def _opt_pt(template, size):
+    """字号有值才转 pt，缺则 None（→ 不套，留 Word 默认）。"""
+    return DU.pt_of(template, size) if (size is not None and size != "") else None
+
+
+def _read_style(template, sec, *, page_break=None):
+    """从模板某样式段读出排版规格——**只读模板，缺的留 None=不套**。
+    键名做别名兼容（编译模板形状不一）；same_as 引用其他段。零自造格式值。
+    """
+    sec = sec if isinstance(sec, dict) else {}
+    sa = sec.get("same_as")                       # same_as: heading_1 / body_paragraph
+    if isinstance(sa, str):
+        ref = (template.get("headings", {}) or {}).get(sa) if sa.startswith("level_") else None
+        if ref is None and sa in ("body_paragraph", "body"):
+            ref = template.get("body_paragraph")
+        if isinstance(ref, dict):
+            merged = dict(ref); merged.update({k: v for k, v in sec.items() if k != "same_as"})
+            sec = merged
+    font = sec.get("font")
+    cn = latin = size = None
+    if isinstance(font, dict):
+        cn, latin, size = font.get("cn"), font.get("latin"), font.get("size")
+    elif isinstance(font, str):
+        cn = font
+    if sec.get("font_cn") is not None:
+        cn = sec["font_cn"]
+    if sec.get("latin") is not None:
+        latin = sec["latin"]
+    if sec.get("size") is not None:
+        size = sec["size"]
+    ls = sec.get("line_spacing")
+    return {
+        "cn": cn, "latin": latin, "size": _opt_pt(template, size),
+        "bold": sec.get("bold"),
+        "align": sec.get("align", sec.get("alignment")),
+        "first_line_chars": sec.get("first_line_indent_chars", sec.get("indent_chars")),
+        "line_single": (str(ls) == "single") if ls is not None else None,
+        "before_lines": sec.get("space_before_lines"),
+        "after_lines": sec.get("space_after_lines"),
+        "page_break": sec.get("page_break_before", sec.get("new_page", page_break)),
+    }
+
+
+# 结构标签 -> 模板里定义其格式的段落（格式值全来自 DeepSeek 抽的模板，引擎不自造）
 def _spec_for(label, template):
-    """前置/正文标签 -> 排版规格。bold=None 保留源 run 加粗。"""
     t = template
-    body = t["body_paragraph"]
-    body_cn = body["font"]["cn"]; body_latin = body["font"]["latin"]
-    body_sz = DU.pt_of(t, body["font"]["size"])
-    hcn = t["fonts"]["heading_cn"]; latin = t["fonts"]["default_latin"]
-
-    def heading(n):
-        h = t["headings"].get(f"level_{n}", {})
-        return dict(cn=h.get("font_cn", hcn), latin=h.get("latin", latin),
-                    size=DU.pt_of(t, h.get("size", "小四")), bold=True,
-                    align=h.get("align", "left"),
-                    first_line_chars=h.get("first_line_indent_chars", 0),
-                    line_single=True, before_lines=h.get("space_before_lines"),
-                    after_lines=h.get("space_after_lines"),
-                    page_break=h.get("page_break_before", False))
-
-    base_body = dict(cn=body_cn, latin=body_latin, size=body_sz, bold=None,
-                     align=body["align"], first_line_chars=body["first_line_indent_chars"],
-                     line_single=True, before_lines=None, after_lines=None, page_break=False)
-
+    CA = t.get("chinese_abstract", {}) or {}
+    EA = t.get("english_abstract", {}) or {}
+    TB = t.get("tables", {}) or {}
+    FG = t.get("figures", {}) or {}
+    REF = t.get("references", {}) or {}
+    ACK = t.get("acknowledgements", {}) or {}
+    TOC = t.get("table_of_contents", {}) or {}
+    sec_map = {
+        "body": t.get("body_paragraph"),
+        "abstract_cn_title": CA.get("title"), "abstract_cn_body": CA.get("body"), "keywords_cn": CA.get("keywords"),
+        "title_en": EA.get("title"), "abstract_en_title": EA.get("title"), "abstract_en_body": EA.get("body"),
+        "keywords_en": EA.get("keywords"),
+        "table_title": TB.get("title"), "figure_title": FG.get("title"), "note": TB.get("notes"),
+        "reference_title": REF.get("title"), "reference_item": REF.get("body"),
+        "ack_title": ACK.get("title"), "ack_body": ACK.get("body"),
+        "toc_title": TOC.get("title"),
+    }
     if label in ("heading_1", "heading_2", "heading_3", "heading_4", "heading_5"):
-        return heading(int(label[-1]))
-    if label in ("reference_title", "ack_title"):
-        s = heading(1); s["page_break"] = True; return s
-    if label == "toc_title":
-        s = heading(1); s["page_break"] = True; return s        # 目录另起一页
-    if label == "abstract_cn_title":
-        return dict(cn=hcn, latin=latin, size=DU.pt_of(t, "小二"), bold=True, align="center",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=False)
-    if label == "title_en":                                     # 2.5 英文摘要另起一页（题目=第1行）
-        return dict(cn=latin, latin=latin, size=DU.pt_of(t, "小二"), bold=True, align="center",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=True)
-    if label == "abstract_en_title":                            # "Abstract"=第2行，跟在题目后同页
-        return dict(cn=latin, latin=latin, size=DU.pt_of(t, "小二"), bold=True, align="center",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=False)
-    if label == "abstract_en_body":
-        s = dict(base_body); s["cn"] = latin; s["latin"] = latin; return s
-    if label == "keywords_cn":                                  # 关键词顶格(缩进0)，前缀加粗保留
-        return dict(cn=body_cn, latin=body_latin, size=body_sz, bold=None, align="left",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=False)
-    if label == "keywords_en":                                  # Key words 顶格 TNR
-        return dict(cn=latin, latin=latin, size=body_sz, bold=None, align="left",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=False)
-    if label in ("table_title", "figure_title"):
-        return dict(cn=body_cn, latin=latin, size=DU.pt_of(t, "五号"), bold=None, align="center",
-                    first_line_chars=0, line_single=True, before_lines=None, after_lines=None, page_break=False)
-    if label == "note":
-        s = dict(base_body); s["size"] = DU.pt_of(t, "小五"); s["first_line_chars"] = 1; return s
-    # body / keywords_* / abstract_cn_body / toc_item / reference_item / ack_body / blank
-    return base_body
+        return _read_style(t, (t.get("headings", {}) or {}).get(f"level_{label[-1]}"))
+    if label in sec_map:
+        return _read_style(t, sec_map[label])
+    return _read_style(t, t.get("body_paragraph"))      # blank / 未知 -> 正文段样式
 
 
 _LABEL_TO_SLOT = {"cover_doctype": "doctype", "title_main": "title_cn",
@@ -75,38 +91,43 @@ _LABEL_TO_SLOT = {"cover_doctype": "doctype", "title_main": "title_cn",
 
 
 def _emit_cover(out, cover_blocks, template, labels):
-    """封面：完全数据驱动（读 template['cover']）。logo + 槽位格式 + 空白行结构全从 YAML 来，零农大硬编码。"""
-    cv = template.get("cover", {})
-    slots = cv.get("slots", {})
-    blanks = cv.get("blanks", {})
-    align = cv.get("align", "center")
-    latin = template["fonts"]["default_latin"]
-    blank_cn = cv.get("blank", {}).get("font", template["fonts"]["default_cn"])
-    blank_sz = DU.pt_of(template, cv.get("blank", {}).get("size", "五号"))
+    """封面：只读 template['cover']（DeepSeek 抽的）。logo + 槽位格式 + 空白行结构全来自模板，缺则不套。"""
+    cv = template.get("cover", {}) or {}
+    slots = cv.get("slots", {}) or {}
+    blanks = cv.get("blanks", {}) or {}
+    align = cv.get("align")
+    bcfg = cv.get("blank", {}) if isinstance(cv.get("blank"), dict) else {}
+    blank_cn = bcfg.get("font")
+    blank_sz = _opt_pt(template, bcfg.get("size"))
 
     def slot_spec(slot):
-        s = slots.get(slot, slots.get("other", {}))
-        return dict(cn=s.get("font", template["fonts"]["default_cn"]), latin=latin,
-                    size=DU.pt_of(template, s.get("size", "小三")), bold=s.get("bold", False),
-                    align=s.get("align", align), first_line_chars=s.get("first_line_indent_chars", 0),
-                    line_single=True, before_lines=None, after_lines=None, page_break=False)
+        s = slots.get(slot) if isinstance(slots.get(slot), dict) else slots.get("other")
+        spec = _read_style(template, s)
+        if spec.get("align") is None:
+            spec["align"] = align
+        return spec
 
     def add_blanks(n):
-        for _ in range(int(n or 0)):
+        for _ in range(int(DU._num(n, 0))):
             p = out.add_paragraph()
             r = p.add_run(" ")
-            DU.set_run_font(r, cn=blank_cn, latin=latin, size_pt=blank_sz)
+            DU.set_run_font(r, cn=blank_cn, size_pt=blank_sz)
             DU.set_paragraph_format(p, align=align, line_spacing_single=True)
 
-    # 行1：校名标准字图（模板furniture，无文字→不影响内容守恒）
+    # 行1：校名标准字图（模板 furniture，无文字→不影响内容守恒）
     logo = cv.get("logo")
-    if logo:
+    if isinstance(logo, dict) and logo.get("asset"):
         asset = config.TEMPLATES_DIR / logo["asset"]
         if asset.exists():
             p = out.add_paragraph()
             p.alignment = DU.ALIGN["center"]
             try:
-                p.add_run().add_picture(str(asset), width=Mm(logo["width_mm"]), height=Mm(logo["height_mm"]))
+                kw = {}
+                if logo.get("width_mm"):
+                    kw["width"] = Mm(DU._num(logo["width_mm"], 120))
+                if logo.get("height_mm"):
+                    kw["height"] = Mm(DU._num(logo["height_mm"], 30))
+                p.add_run().add_picture(str(asset), **kw)
             except Exception:
                 pass
 
@@ -145,9 +166,8 @@ def _add_table(out, block, template):
     n_rows = max(block["n_rows"], 1); n_cols = max(block["n_cols"], 1)
     table = out.add_table(rows=n_rows, cols=n_cols)
     table.alignment = 1
-    tconf = template["tables"]
-    content_cn = tconf["content"]["font"]; content_latin = tconf["content"]["latin"]
-    content_sz = DU.pt_of(template, tconf["content"]["size"])
+    tconf = template.get("tables", {}) or {}
+    cs = _read_style(template, tconf.get("content"))     # 内容字体只读模板
     for ri, row in enumerate(block["rows"]):
         for ci, cell_text in enumerate(row):
             if ri < n_rows and ci < n_cols:
@@ -156,9 +176,10 @@ def _add_table(out, block, template):
                 for p in cell.paragraphs:
                     p.alignment = 1
                     for r in p.runs:
-                        DU.set_run_font(r, cn=content_cn, latin=content_latin, size_pt=content_sz)
-    DU.apply_three_line_table(table, top_bottom_pt=tconf["border"]["top_bottom_pt"],
-                              middle_pt=tconf["border"]["middle_pt"])
+                        DU.set_run_font(r, cn=cs["cn"], latin=cs["latin"], size_pt=cs["size"])
+    border = tconf.get("border", {}) if isinstance(tconf.get("border"), dict) else {}
+    DU.apply_three_line_table(table, top_bottom_pt=DU._num(border.get("top_bottom_pt"), 1.5),
+                              middle_pt=DU._num(border.get("middle_pt"), 0.5))
     return table
 
 
@@ -190,8 +211,8 @@ _TOC_NUM_RE = re.compile(r"^\s*(\d+(?:\.\d+)*)")
 
 def _add_toc_item(out, block, template):
     """目录条目（2.6）：章/节/条三级缩进 + 页码右对齐 + 点引线。数据来自 template['table_of_contents']。"""
-    toc = template.get("table_of_contents", {})
-    latin = toc.get("number_letter_font", template["fonts"]["default_latin"])
+    toc = template.get("table_of_contents", {}) or {}
+    latin0 = toc.get("number_letter_font")
     text = block["text"].strip()
     page = ""
     title = text
@@ -201,14 +222,16 @@ def _add_toc_item(out, block, template):
         title = text[:m.start()].rstrip()
     lm = _TOC_NUM_RE.match(title)
     level = min((lm.group(1).count(".") + 1) if lm else 1, 3)
-    lv = toc.get(f"level_{level}", {})
-    cn = lv.get("font", template["fonts"]["default_cn"])
-    bold = bool(lv.get("bold", False))
-    indent = lv.get("indent_chars", level - 1)
-    size = DU.pt_of(template, lv.get("size", "五号"))
+    st = _read_style(template, toc.get(f"level_{level}"))     # 字体字号加粗只读模板
+    cn = st["cn"]; latin = st["latin"] or latin0; bold = st["bold"]; size = st["size"]
+    indent = st["first_line_chars"]
+    if indent is None:
+        indent = level - 1                  # 缩进缺则按层级递进（纯机制：目录靠层级缩进）
 
     p = out.add_paragraph()
-    tw = template["page"]["width_mm"] - template["page"]["margins_mm"]["left"] - template["page"]["margins_mm"]["right"]
+    pg = template.get("page", {}) or {}
+    mg = pg.get("margins_mm", {}) if isinstance(pg.get("margins_mm"), dict) else {}
+    tw = DU._num(pg.get("width_mm"), 210) - DU._num(mg.get("left"), 25.4) - DU._num(mg.get("right"), 25.4)
     p.paragraph_format.tab_stops.add_tab_stop(Mm(tw), WD_TAB_ALIGNMENT.RIGHT, WD_TAB_LEADER.DOTS)
     r1 = p.add_run(title + ("\t" if page else ""))
     DU.set_run_font(r1, cn=cn, latin=latin, size_pt=size, bold=bold)
@@ -233,9 +256,9 @@ def _emit(out, blocks, template, labels=None):
 
 def format_docx(blocks, labels, template, out_path):
     out = Document()
-    # 全局：Normal 段前段后0、单倍行距（农大要求；避免 Word 默认段后间距把封面撑到两页）
+    # 全局清场：去掉 Word 默认的段后间距（Office 风格默认，非格式判断），让模板/源说了算
     nf = out.styles["Normal"].paragraph_format
-    nf.space_before = Pt(0); nf.space_after = Pt(0); nf.line_spacing = 1.0
+    nf.space_before = Pt(0); nf.space_after = Pt(0)
     title = _pick_title(blocks, labels)
     cover, front, body = _partition(blocks, labels)
 
@@ -259,31 +282,37 @@ def format_docx(blocks, labels, template, out_path):
     if ps and not ps[0].text.strip() and not ps[0].runs:
         ps[0]._element.getparent().remove(ps[0]._element)
 
-    # 逐节配置页面 + 页眉 + 分节页码
-    foot_fmt = template["footer"]["page_number"]["format"]
+    # 逐节配置页面 + 页眉 + 分节页码（页码格式读 template['pagination']）
+    pag = template.get("pagination", {}) or {}
+    NUMFMT = {"roman": "lowerRoman", "lower_roman": "lowerRoman", "lowerroman": "lowerRoman",
+              "upper_roman": "upperRoman", "arabic": "decimal", "decimal": "decimal"}
+    fp = (template.get("footer", {}) or {}).get("page_number", {})
+    foot_fmt = (fp.get("format") if isinstance(fp, dict) else None) or "n"
     for sec, role in zip(out.sections, roles):
         DU.set_page(sec, template)
         if role == "cover":
-            DU.blank_header_footer(sec)                              # 封面：无页眉、无页码
-        elif role == "front":
-            DU.setup_title_header(sec, template, title)
-            DU.setup_pagenum_footer(sec, template, "n")             # 罗马
-            DU.set_page_number_format(sec, "lowerRoman", start=1)
+            DU.blank_header_footer(sec)                              # 封面/扉页：无页眉、无页码
         else:
             DU.setup_title_header(sec, template, title)
-            DU.setup_pagenum_footer(sec, template, foot_fmt)        # 阿拉伯 - n -
-            DU.set_page_number_format(sec, "decimal", start=1)
+            key = "frontmatter" if role == "front" else "body"
+            numfmt = NUMFMT.get(str(pag.get(key)).lower(), "lowerRoman" if role == "front" else "decimal")
+            DU.setup_pagenum_footer(sec, template, "n" if role == "front" else foot_fmt)
+            DU.set_page_number_format(sec, numfmt, start=1)
 
     out.save(out_path)
-    _m = template['page']['margins_mm']
-    change_log = [
-        {"what": "页面规范化", "detail": f"A4 · 边距 上{_m['top']}/下{_m['bottom']}/左{_m['left']}/右{_m['right']} mm · 网格 38×38"},
-        {"what": "封面重排", "detail": "文种隶书一号·题目黑体二号·信息栏黑体小三·独立成页·不编页码"},
-        {"what": "分节页码", "detail": "封面无码 → 摘要/目录罗马数字 → 正文阿拉伯数字重起 1"},
-        {"what": "字体统一", "detail": f"中文 {template['fonts']['default_cn']} / 西文 {template['fonts']['default_latin']}（eastAsia 分绑）"},
-        {"what": "标题层级重构", "detail": "按结构识别套各级标题；章另起页"},
-        {"what": "页眉双线", "detail": "正文区页眉=论文题目+粗细双线（封面/扉页不带）"},
-        {"what": "三线表", "detail": "表格统一为开放式三线格（上下 1.5 磅 / 表头下 0.5 磅）"},
-    ]
-    return {"out_path": out_path, "title": title, "change_log": change_log,
+    return {"out_path": out_path, "title": title, "change_log": _change_log(template),
             "sections": roles}
+
+
+def _change_log(t):
+    """大白话改动清单（按模板实际值，不写死任何格式判断）。"""
+    meta = t.get("meta", {}) or {}
+    log = [{"what": "套用规范", "detail": "《%s》" % (meta.get("name") or "目标规范")}]
+    pg = t.get("page", {}) or {}
+    m = pg.get("margins_mm") if isinstance(pg.get("margins_mm"), dict) else None
+    if m:
+        log.append({"what": "页边距", "detail": "上%s/下%s/左%s/右%s mm" % (m.get("top"), m.get("bottom"), m.get("left"), m.get("right"))})
+    log.append({"what": "结构套版", "detail": "封面/标题分级/正文/摘要/目录/参考文献等按规范逐元素套用（内容一字不动）"})
+    log.append({"what": "分节页码", "detail": "封面/扉页不编 → 前置/正文按规范页码格式"})
+    log.append({"what": "三线表 + 页眉", "detail": "表格三线格 + 正文区页眉"})
+    return log

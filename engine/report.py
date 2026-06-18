@@ -21,24 +21,23 @@ def _count_words(blocks, labels):
 
 
 def build(blocks, labels, template, fmt, gate):
-    meta = template["meta"]
+    meta = template.get("meta", {}) or {}
     doc_type = meta.get("doc_type", "thesis")
-    min_words = meta["min_word_count"].get(doc_type, 0)
+    mwc = meta.get("min_word_count", {}) if isinstance(meta.get("min_word_count"), dict) else {}
+    min_words = mwc.get(doc_type, 0) or 0
 
     words = _count_words(blocks, labels)
     refs = [b for b in blocks if b["kind"] == "paragraph" and labels.get(b["idx"]) == "reference_item"]
     n_refs = len(refs)
     n_foreign = sum(1 for b in refs if len(_LATIN.findall(b["text"])) > 10)
-    req = template["references"]["requirements"].get(doc_type, {})
+    reqs = (template.get("references", {}) or {}).get("requirements", {})
+    req = reqs.get(doc_type, {}) if isinstance(reqs, dict) else {}
 
-    # 核对表格（✅/⚠）
+    # 核对：只列规范里明确给了硬指标的项；不写死任何格式值
     checks = []
-    checks.append({"item": "页边距", "expected": "38/48/24/24 mm",
-                   "actual": "38/48/24/24 mm", "result": "pass"})
-    checks.append({"item": "正文字体", "expected": "宋体 五号 / 西文 Times New Roman",
-                   "actual": "宋体 五号 / Times New Roman", "result": "pass"})
-    checks.append({"item": "全文字数", "expected": f"≥ {min_words} 字",
-                   "actual": f"约 {words} 字", "result": "pass" if words >= min_words else "warn"})
+    if min_words:
+        checks.append({"item": "全文字数", "expected": f"≥ {min_words} 字",
+                       "actual": f"约 {words} 字", "result": "pass" if words >= min_words else "warn"})
     if req:
         checks.append({"item": "参考文献数量", "expected": f"≥ {req.get('min_total', 0)} 篇",
                        "actual": f"{n_refs} 篇", "result": "pass" if n_refs >= req.get("min_total", 0) else "warn"})
@@ -48,7 +47,7 @@ def build(blocks, labels, template, fmt, gate):
 
     # 待补项（⚪ 需你补，不编造）
     pending = []
-    if words < min_words:
+    if min_words and words < min_words:
         pending.append({"title": "字数还差一点", "detail": f"目标 ≥ {min_words} 字，现在约 {words} 字。"})
     if req and n_refs < req.get("min_total", 0):
         pending.append({"title": "参考文献偏少", "detail": f"要求 ≥ {req.get('min_total')} 篇，现在 {n_refs} 篇。"})
@@ -66,7 +65,7 @@ def build(blocks, labels, template, fmt, gate):
               "msg": "排版后有文字和你原稿对不上了，已拦下不交残稿。" + (f" 对不上的片段：{lost}" if lost else ""),
               "lost": gate["lost"], "added": gate["added"]}
 
-    summary = ("帮你把文档套成了《%s》的格式。" % meta["name"]) + \
+    summary = ("帮你把文档套成了《%s》的格式。" % (meta.get("name") or "目标规范")) + \
               ("正文一字没动。" if gate["ok"] else "但发现正文对不上，已拦下。")
 
     return {

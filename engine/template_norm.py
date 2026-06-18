@@ -4,55 +4,22 @@
 """
 import copy
 
-# 引擎会读到的全部字段的中性默认骨架（无院校专属值，如不含 logo）
+# 默认骨架：只放「通用事实/机制」+ 空结构占位（防 KeyError）。
+# **绝不放任何格式判断值**（字体/字号/边距/封面槽…）——那些全由 DeepSeek 抽的模板提供；
+# 模板缺的字段，引擎不套（留 Word 默认），由算力自检标"待补"。
 DEFAULTS = {
-    "meta": {"id": "tpl", "name": "", "institution": "", "doc_type": "thesis",
-             "min_word_count": {"thesis": 8000, "design": 5000}},
+    "meta": {},
+    # 中文字号名 -> pt：国标对照（事实，非格式判断）
     "size_table": {"初号": 42, "小初": 36, "一号": 26, "小一": 24, "二号": 22, "小二": 18,
                    "三号": 16, "小三": 15, "四号": 14, "小四": 12, "五号": 10.5, "小五": 9,
                    "六号": 7.5, "小六": 6.5},
-    "page": {"size": "A4", "width_mm": 210, "height_mm": 297,
-             "margins_mm": {"top": 25.4, "bottom": 25.4, "left": 25.4, "right": 25.4},
-             "grid": {"type": "lines_and_chars", "lines_per_page": 38, "chars_per_line": 38}},
-    "fonts": {"default_cn": "宋体", "default_latin": "Times New Roman", "heading_cn": "黑体"},
-    "header": {"margin_mm": 15, "content": "thesis_title",
-               "font": {"cn": "宋体", "latin": "Times New Roman", "size": "小五", "align": "center"},
-               "border_below": {"style": "double", "upper_pt": 3, "lower": "hairline"}},
-    "footer": {"margin_mm": 15,
-               "font": {"cn": "宋体", "latin": "Times New Roman", "size": "小五", "align": "center"},
-               "page_number": {"format": "- n -"}},
-    "pagination": {"cover_titlepage": "none", "frontmatter": "roman", "body": "arabic"},
-    "cover": {"align": "center", "line_spacing": "single",
-              "blank": {"font": "宋体", "size": "五号"},
-              "blanks": {"after_doctype": 2, "after_title": 2, "after_fields": 2},
-              "slots": {
-                  "doctype":  {"font": "黑体", "size": "一号"},
-                  "title_cn": {"font": "黑体", "size": "二号", "bold": True},
-                  "title_en": {"font": "Times New Roman", "size": "二号", "bold": True},
-                  "field":    {"font": "黑体", "size": "小三", "first_line_indent_chars": 0, "align": "center"},
-                  "date":     {"font": "黑体", "size": "小二"},
-                  "other":    {"font": "宋体", "size": "小三"}}},
-    "body_paragraph": {"font": {"cn": "宋体", "latin": "Times New Roman", "size": "五号"},
-                       "first_line_indent_chars": 2, "align": "justify", "line_spacing": "single"},
-    "headings": {
-        "level_1": {"numbering": "1", "name": "章", "font_cn": "黑体", "latin": "Times New Roman",
-                    "size": "小二", "bold": True, "first_line_indent_chars": 0, "space_before_lines": 0.5,
-                    "space_after_lines": 0.5, "line_spacing": "single", "page_break_before": True, "align": "center"},
-        "level_2": {"numbering": "1.1", "name": "节", "font_cn": "黑体", "latin": "Times New Roman",
-                    "size": "小三", "bold": True, "first_line_indent_chars": 1, "line_spacing": "single"},
-        "level_3": {"numbering": "1.1.1", "name": "条", "font_cn": "黑体", "latin": "Times New Roman",
-                    "size": "四号", "bold": True, "first_line_indent_chars": 2, "line_spacing": "single"},
-        "level_4": {"numbering": "1.1.1.1", "name": "款", "font_cn": "黑体", "latin": "Times New Roman",
-                    "size": "小四", "bold": True, "first_line_indent_chars": 2, "line_spacing": "single"},
-        "level_5": {"numbering": "(1)", "name": "项", "font_cn": "黑体", "latin": "Times New Roman",
-                    "size": "小四", "bold": True, "first_line_indent_chars": 2, "line_spacing": "single"}},
-    "tables": {"style": "three_line", "border": {"top_bottom_pt": 1.5, "middle_pt": 0.5},
-               "content": {"font": "宋体", "latin": "Times New Roman", "size": "小五"}},
-    "table_of_contents": {"number_letter_font": "Times New Roman",
-                          "level_1": {"font": "黑体", "size": "五号", "bold": True, "indent_chars": 0},
-                          "level_2": {"font": "宋体", "size": "五号", "indent_chars": 1},
-                          "level_3": {"font": "宋体", "size": "五号", "indent_chars": 2}},
-    "references": {"requirements": {}},
+    # A4 尺寸（事实；用户认可保留）。不默认边距/网格/字体/任何格式值。
+    "page": {"size": "A4", "width_mm": 210, "height_mm": 297},
+    # 其余仅空结构占位（防崩），无任何格式值
+    "fonts": {}, "header": {}, "footer": {}, "pagination": {},
+    "cover": {"slots": {}}, "body_paragraph": {}, "headings": {},
+    "tables": {}, "table_of_contents": {}, "figures": {},
+    "chinese_abstract": {}, "english_abstract": {}, "references": {}, "acknowledgements": {},
 }
 
 

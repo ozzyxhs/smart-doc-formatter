@@ -108,19 +108,30 @@ def set_paragraph_format(p, *, align=None, first_line_chars=None, line_spacing_s
 
 
 def set_page(section, template):
-    pg = template.get("page", {})
-    section.page_width = Mm(_num(pg.get("width_mm"), 210))
-    section.page_height = Mm(_num(pg.get("height_mm"), 297))
-    m = pg.get("margins_mm", {}) if isinstance(pg.get("margins_mm"), dict) else {}
-    section.top_margin = Mm(_num(m.get("top"), 25.4))
-    section.bottom_margin = Mm(_num(m.get("bottom"), 25.4))
-    section.left_margin = Mm(_num(m.get("left"), 25.4))
-    section.right_margin = Mm(_num(m.get("right"), 25.4))
-    section.header_distance = Mm(_num(template.get("header", {}).get("margin_mm"), 15))
-    section.footer_distance = Mm(_num(template.get("footer", {}).get("margin_mm"), 15))
-    # 文档网格 38 行 × 38 字
+    """页面只读模板；边距等缺失则**不设**（留 Word 默认），不注入我的值。"""
+    pg = template.get("page", {}) or {}
+    if pg.get("width_mm"):
+        section.page_width = Mm(_num(pg["width_mm"], 210))
+    if pg.get("height_mm"):
+        section.page_height = Mm(_num(pg["height_mm"], 297))
+    m = pg.get("margins_mm") if isinstance(pg.get("margins_mm"), dict) else {}
+    if m.get("top") is not None:
+        section.top_margin = Mm(_num(m["top"]))
+    if m.get("bottom") is not None:
+        section.bottom_margin = Mm(_num(m["bottom"]))
+    if m.get("left") is not None:
+        section.left_margin = Mm(_num(m["left"]))
+    if m.get("right") is not None:
+        section.right_margin = Mm(_num(m["right"]))
+    hm = (template.get("header", {}) or {}).get("margin_mm")
+    if hm is not None:
+        section.header_distance = Mm(_num(hm))
+    fm = (template.get("footer", {}) or {}).get("margin_mm")
+    if fm is not None:
+        section.footer_distance = Mm(_num(fm))
+    # 文档网格（模板有才设）
     grid = pg.get("grid")
-    if grid:
+    if isinstance(grid, dict):
         sectPr = section._sectPr
         dg = _get_or_add(sectPr, "w:docGrid")
         dg.set(qn("w:type"), "linesAndChars")
@@ -179,29 +190,35 @@ def set_page_number_format(section, numfmt, start=1):
 
 
 def setup_title_header(section, template, title):
-    """本节页眉 = 论文题目 + 粗细双线（封面节不要调用）。"""
-    h = template["header"]
+    """本节页眉 = 论文题目。字体/双线只读模板 header 段，缺则不套（封面节不要调用）。"""
+    h = template.get("header", {}) if isinstance(template.get("header"), dict) else {}
+    hf = h.get("font", {}) if isinstance(h.get("font"), dict) else {}
     section.header.is_linked_to_previous = False
     p = section.header.paragraphs[0]
     _clear_runs(p)
     run = p.add_run(title or "")
-    set_run_font(run, cn=h["font"]["cn"], latin=h["font"]["latin"],
-                 size_pt=pt_of(template, h["font"]["size"]))
-    set_paragraph_format(p, align=h["font"]["align"])
-    set_double_bottom_border(p, upper_pt=h["border_below"]["upper_pt"])
+    set_run_font(run, cn=_fontname(hf.get("cn")), latin=_fontname(hf.get("latin")),
+                 size_pt=(pt_of(template, hf["size"]) if hf.get("size") else None))
+    if hf.get("align"):
+        set_paragraph_format(p, align=hf["align"])
+    bb = h.get("border_below")
+    if isinstance(bb, dict):                       # 粗细双线：只有模板里有才加
+        set_double_bottom_border(p, upper_pt=bb.get("upper_pt", 3))
 
 
 def setup_pagenum_footer(section, template, fmt_str):
-    """本节页脚 = 页码域（数字格式随本节 pgNumType）。"""
-    f = template["footer"]
+    """本节页脚 = 页码域（数字格式随本节 pgNumType）。字体只读模板 footer 段。"""
+    f = template.get("footer", {}) if isinstance(template.get("footer"), dict) else {}
+    ff = f.get("font", {}) if isinstance(f.get("font"), dict) else {}
     section.footer.is_linked_to_previous = False
     p = section.footer.paragraphs[0]
     _clear_runs(p)
-    set_paragraph_format(p, align=f["font"]["align"])
+    if ff.get("align"):
+        set_paragraph_format(p, align=ff["align"])
     add_page_number_field(p, fmt=fmt_str)
     for r in p.runs:
-        set_run_font(r, cn=f["font"]["cn"], latin=f["font"]["latin"],
-                     size_pt=pt_of(template, f["font"]["size"]))
+        set_run_font(r, cn=_fontname(ff.get("cn")), latin=_fontname(ff.get("latin")),
+                     size_pt=(pt_of(template, ff["size"]) if ff.get("size") else None))
 
 
 def blank_header_footer(section):
