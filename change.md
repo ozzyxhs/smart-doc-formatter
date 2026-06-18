@@ -162,3 +162,12 @@ P0（本提交）：
 - 页码方案读 `template['pagination']`；change_log 改通用（按模板实际值）。
 - **大自检**：农大+xjit 两模板均排版 OK、内容守恒=True、报告/复审正常。grep 审计：引擎残留写死值仅国标事实（size_table / 三线表 1.5·0.5pt）+ 机制（Word 默认边距 / border art 名），非格式判断。
 - **农大改编译生成（最后一处手写违规清掉）**：`template_norm.SCHEMA_HINT`（结构骨架，只描述字段嵌套/类型/取值范围，**无任何格式值**）引导编译器；用编译器从 `农大格式要求.pdf`（13页9903字符，有文字层）让 DeepSeek 抽出 YAML，**替换我手写那份**。渲染验证：封面校名图+隶书一号+黑体二号+信息栏左缩进5字符，与 §2.3 一致；内容守恒 OK、31 页。`cover.logo.asset` 文件路径 + `meta.spec_source_json` 是机制配置（指向哪个文件），非格式判断，由我接。**至此仓库零手写模板、引擎零自造格式值，格式全由 DeepSeek 产出。**
+
+## 2026-06-18 · C0 还债首笔：离线测试网 + CI（可复现性）
+
+回应外部 review（commit `ad0673a`）"测试不可复现 / 无 CI"的硬伤——搭最小验证网，让「干净 clone 即可复现」成立：
+- **`tests/synthetic.py`**：代码生成最小合成论文 docx（封面槽位 / 摘要 / 一级标题 / 正文 / 三线表 / 参考文献），**不入库二进制、可复现**。TOC、封面精排等留待各自元素 issue 附自己的 golden（金标随元素长）。
+- **`tests/test_pipeline_offline.py`**：离线端到端——打桩 `llm.chat/chat_json`（**真触网即硬报错，不许静默**）、`classify.classify`（确定性标签）、`format_review.review`，跑 `pipeline.run` 全链，断言 **产出 docx + 内容守恒 ok + 不阻断**。**不需要 API key、不依赖本机 fixtures**，取代依赖 `fixtures/论文（三稿）.docx` 的旧 `scripts/test_templates.py`。
+- **`.github/workflows/ci.yml`**：push / PR 跑 `compileall`（杜绝坏代码进 main）+ `pytest`。
+- 本地验证：`compileall` 0 错；`pytest` 1 passed（1.2s）。
+- 这是 C0。后续：C1 fail-loud（分类失败显式降级 / 阻断，不静默）、C2 输入消毒（文件名 + tid 白名单）、C3 README 现状 / 计划分离、C4 MIT LICENSE + 依赖 pin。
