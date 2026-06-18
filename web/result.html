@@ -80,8 +80,13 @@ function renderBlockedBanner(rep) {
   document.getElementById('banner-icon-wrap').className = 'h-12 w-12 rounded-full bg-error-container flex items-center justify-center';
   document.getElementById('banner-icon').textContent = 'report';
   document.getElementById('banner-icon').className = 'material-symbols-outlined text-on-error-container text-3xl fill';
-  document.getElementById('banner-title').textContent = '已拦下：内容对不上';
-  document.getElementById('banner-sub').textContent = rep.content.msg;
+  if (rep.block_reason === 'classification') {
+    document.getElementById('banner-title').textContent = '已拦下：结构识别不可靠';
+    document.getElementById('banner-sub').textContent = (rep.classification && rep.classification.msg) || '结构识别失败，已拦下不交。';
+  } else {
+    document.getElementById('banner-title').textContent = '已拦下：内容对不上';
+    document.getElementById('banner-sub').textContent = rep.content.msg;
+  }
   const dl = document.getElementById('dl-doc');
   dl.className = 'px-5 py-3 rounded-lg bg-surface-container text-secondary font-body-bold flex items-center gap-2 cursor-not-allowed';
   dl.removeAttribute('href'); dl.onclick = e=>e.preventDefault();

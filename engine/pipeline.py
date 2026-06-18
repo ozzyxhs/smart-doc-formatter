@@ -46,8 +46,14 @@ def run(input_path, template_id, out_path, progress=None):
     fallback_useful = any(str(v).startswith("heading") for v in labels.values())
     cls_blocked = (cl["confidence"] == "fallback" and not fallback_useful)
     report["classification"] = _classification_report(cl, cls_blocked)
-    if cls_blocked:
+    # 阻断原因：前端 / 下载据此区分文案，别再统一写"内容对不上"
+    if not gate["ok"]:
+        report["block_reason"] = "content"          # 内容守恒失败优先（更严重）
+    elif cls_blocked:
+        report["block_reason"] = "classification"   # 内容没丢，但结构识别不可靠
         report["status"] = "blocked"
+    else:
+        report["block_reason"] = None
 
     step("review", 95)              # LLM 格式复审（算力自检，按模板缓存）
     try:

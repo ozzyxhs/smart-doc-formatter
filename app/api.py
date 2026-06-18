@@ -333,6 +333,9 @@ def job_download(jid):
     if not j or not j.get("out_path"):
         raise HTTPException(404, "成品未就绪")
     if j["status"] == "blocked":
+        reason = (j.get("report") or {}).get("block_reason")
+        if reason == "classification":
+            raise HTTPException(409, "结构识别不可靠，已拒交")
         raise HTTPException(409, "内容守恒未通过，已拒交残稿")
     return FileResponse(
         j["out_path"], filename=f"已排版_{j.get('filename', 'output.docx')}",

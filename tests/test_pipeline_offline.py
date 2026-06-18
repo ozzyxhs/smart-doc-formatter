@@ -44,6 +44,7 @@ def test_pipeline_runs_offline_and_conserves_content(tmp_path, monkeypatch):
     assert res["blocked"] is False, "内容守恒应通过，不应阻断"
     assert res["report"]["classification"]["confidence"] == "full"
     assert res["report"]["classification"]["degraded"] is False
+    assert res["report"]["block_reason"] is None
 
 
 def test_llm_failure_degrades_loudly_not_silently(tmp_path, monkeypatch):
@@ -83,3 +84,30 @@ def test_llm_failure_blocks_when_fallback_useless(tmp_path, monkeypatch):
     assert res["blocked"] is True, "兜底无用 → 必须阻断"
     assert c["blocked"] is True
     assert res["report"]["status"] == "blocked"
+    assert res["report"]["block_reason"] == "classification"
+
+
+def test_content_loss_blocks_with_content_reason(tmp_path, monkeypatch):
+    """内容守恒失败：block_reason='content'，区别于分类阻断（前端 / 下载文案要不同）。"""
+    monkeypatch.setattr(llm, "chat", _no_network)
+    monkeypatch.setattr(llm, "chat_json", _no_network)
+    monkeypatch.setattr(classify, "classify",
+                        lambda blocks, **k: {"labels": synthetic.offline_labels(blocks),
+                                             "confidence": "full", "failed_batches": 0, "total_batches": 1})
+    monkeypatch.setattr(format_review, "review",
+                        lambda template: {"ok": None, "deviations": [], "error": "stubbed offline"})
+    # 强制内容守恒失败（与分类无关）
+    from engine.gates import content_gate
+    monkeypatch.setattr(content_gate, "check",
+                        lambda src, out: {"ok": False, "lost": ["丢了一段"], "added": [], "src_chars": 1})
+
+    inp = tmp_path / "in.docx"
+    synthetic.build_synthetic_thesis(inp)
+    out = tmp_path / "out.docx"
+
+    res = pipeline.run(str(inp), TEMPLATE_ID, str(out))
+
+    assert res["blocked"] is True
+    assert res["report"]["block_reason"] == "content"
+    assert res["report"]["status"] == "blocked"
+    assert res["report"]["classification"]["confidence"] == "full"   # 分类正常，纯内容问题

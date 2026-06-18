@@ -28,8 +28,10 @@ if cache.exists() and not fresh:
     labels = {int(k): v for k, v in json.load(open(cache, encoding="utf-8")).items()}
 else:
     print("  调 DeepSeek 识别结构…")
-    labels = CLS.classify(blocks)
-    json.dump(labels, open(cache, "w", encoding="utf-8"), ensure_ascii=False)
+    cl = CLS.classify(blocks)
+    labels = cl["labels"]
+    print("  结构识别:", cl["confidence"], f"({cl['failed_batches']}/{cl['total_batches']} 批失败)")
+    json.dump(labels, open(cache, "w", encoding="utf-8"), ensure_ascii=False)   # 只缓存 labels，兼容旧缓存
 
 template = pipeline.load_template(tid)
 fmt = FMT.format_docx(blocks, labels, template, str(out))

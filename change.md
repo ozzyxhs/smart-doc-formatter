@@ -206,3 +206,11 @@ P0（本提交）：
 - **LICENSE**：补 MIT（Copyright 2026 ozzyxhs）。README「可持续增长的模板库」第一次有法律地兑现——之前无 license ＝保留所有权利，别人 clone 即侵权。
 - **`requirements.txt` 直接依赖全 pin `==`**：fastapi 0.136.3 / uvicorn 0.49.0 / python-docx 1.2.0 / lxml 6.1.1 / openai 2.41.1 / pymupdf 1.27.2.3 …（本机实测版本）。CI / clone 装出确定环境；升级一并改这里 + 跑测试。
 - **至此 C0–C4 全部落地**，PR #23 过四条退役线（a 不静默降质 / b 无脏输入落地 / c README 属实 / d 干净机 clone && CI 绿）。
+
+## 2026-06-18 · PR #23 review 修订：区分阻断原因 + 补漏改的 classify 调用方
+
+合并前 reviewer 提的两个 must-fix：
+- **① 阻断原因区分**（之前前端 / 下载对"分类阻断"也硬写"内容对不上"，会误导——分类失败时内容可能没丢）：`pipeline` 给 report 加 `block_reason`（`content` / `classification` / `None`，内容守恒失败优先）；`web/result.html` 阻断横幅按原因显示（分类→"已拦下：结构识别不可靠"+`classification.msg`）；`app/api.py` 下载 409 按原因返回不同文案（分类→"结构识别不可靠，已拒交"）。**+1 测试**（内容阻断 `block_reason=content`），并给分类阻断 / happy-path 补 `block_reason` 断言。
+- **② 补 `scripts/run_local.py`**（C1 改 `classify` 契约时**漏掉的调用方**，会把整个 dict 当 labels 传坏）：改 `cl = classify(...); labels = cl["labels"]`、打印置信度；缓存仍只存 labels（兼容旧 `_labels_cache.json`）。离线非 fresh **实测跑通**（复用缓存 → 格式 → 内容守恒 ok → 出 40KB 成品）。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 6 passed**。
+- 顺手开 issue：收紧 `fallback_useful`（当前"有一个 heading 就算可用"偏粗，应按 heading/body 数量阈值）——非阻断 merge，单列。
