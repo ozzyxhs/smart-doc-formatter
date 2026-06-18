@@ -43,3 +43,20 @@ def offline_labels(blocks):
     t2l = {text: label for text, label in BLOCKS}
     return {b["idx"]: t2l.get(b["text"].strip(), "body")
             for b in blocks if b["kind"] == "paragraph"}
+
+
+def build_min_with_heading_style(path):
+    """带真 Word「Heading 1」样式的最小 docx —— 供 C1 测试『LLM 失败但样式兜底可用』路径。"""
+    doc = Document()
+    doc.add_paragraph("这是正文第一段，用于守恒比对。")
+    doc.add_paragraph("1 引言", style="Heading 1")
+    doc.add_paragraph("这是正文第二段，继续比对。")
+    doc.save(str(path))
+
+
+def build_min_unstyled(path):
+    """全 Normal 样式、无标题样式可兜底 —— 供 C1 测试『兜底无用必须阻断』路径。"""
+    doc = Document()
+    doc.add_paragraph("第一段纯正文，无任何标题样式。")
+    doc.add_paragraph("第二段纯正文，继续比对内容守恒。")
+    doc.save(str(path))

@@ -26,7 +26,9 @@ def test_pipeline_runs_offline_and_conserves_content(tmp_path, monkeypatch):
     monkeypatch.setattr(llm, "chat_json", _no_network)
     # 2) 确定性离线分类（标签不影响内容守恒：正文逐 run 原样拷贝）
     monkeypatch.setattr(classify, "classify",
-                        lambda blocks, **k: synthetic.offline_labels(blocks))
+                        lambda blocks, **k: {"labels": synthetic.offline_labels(blocks),
+                                             "confidence": "full",
+                                             "failed_batches": 0, "total_batches": 1})
     # 3) 格式复审是顾问式 + 触网，离线打桩
     monkeypatch.setattr(format_review, "review",
                         lambda template: {"ok": None, "deviations": [], "error": "stubbed offline"})
@@ -40,3 +42,44 @@ def test_pipeline_runs_offline_and_conserves_content(tmp_path, monkeypatch):
     assert out.exists() and out.stat().st_size > 0, "未产出 docx"
     assert res["report"]["content"]["ok"] is True, res["report"]["content"]
     assert res["blocked"] is False, "内容守恒应通过，不应阻断"
+    assert res["report"]["classification"]["confidence"] == "full"
+    assert res["report"]["classification"]["degraded"] is False
+
+
+def test_llm_failure_degrades_loudly_not_silently(tmp_path, monkeypatch):
+    """C1 · LLM 全挂但原文有标题样式可兜底：仍出稿，但报告必须显著标 degraded（不许装作干净）。"""
+    monkeypatch.setattr(llm, "chat", _no_network)
+    monkeypatch.setattr(llm, "chat_json", _no_network)        # 真失败：classify 不打桩
+    monkeypatch.setattr(format_review, "review",
+                        lambda template: {"ok": None, "deviations": [], "error": "stubbed offline"})
+    inp = tmp_path / "in.docx"
+    synthetic.build_min_with_heading_style(inp)
+    out = tmp_path / "out.docx"
+
+    res = pipeline.run(str(inp), TEMPLATE_ID, str(out))
+
+    c = res["report"]["classification"]
+    assert c["confidence"] == "fallback", c
+    assert c["degraded"] is True
+    assert res["blocked"] is False, "样式兜底可用 → 应仍交付，只是降级"
+    assert res["report"]["content"]["ok"] is True
+    assert "⚠" in c["msg"], "降级必须显著告知"
+
+
+def test_llm_failure_blocks_when_fallback_useless(tmp_path, monkeypatch):
+    """C1 · LLM 全挂且原文无可用标题样式：兜底会是垃圾 → 必须阻断，绝不静默交付残品。"""
+    monkeypatch.setattr(llm, "chat", _no_network)
+    monkeypatch.setattr(llm, "chat_json", _no_network)
+    monkeypatch.setattr(format_review, "review",
+                        lambda template: {"ok": None, "deviations": [], "error": "stubbed offline"})
+    inp = tmp_path / "in.docx"
+    synthetic.build_min_unstyled(inp)
+    out = tmp_path / "out.docx"
+
+    res = pipeline.run(str(inp), TEMPLATE_ID, str(out))
+
+    c = res["report"]["classification"]
+    assert c["confidence"] == "fallback", c
+    assert res["blocked"] is True, "兜底无用 → 必须阻断"
+    assert c["blocked"] is True
+    assert res["report"]["status"] == "blocked"

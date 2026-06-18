@@ -15,7 +15,7 @@ if cache.exists():
     print("复用结构标签缓存")
 else:
     print("调 DeepSeek 识别结构(一次)…")
-    labels = CLS.classify(blocks)
+    labels = CLS.classify(blocks)["labels"]
     json.dump(labels, open(cache, "w", encoding="utf-8"), ensure_ascii=False)
 
 tids = [p.stem for p in sorted(config.TEMPLATES_DIR.glob("*.yaml"))]

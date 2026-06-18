@@ -172,3 +172,13 @@ P0（本提交）：
 - 本地验证：`compileall` 0 错；`pytest` 1 passed（1.2s）。
 - **CI 在干净 ubuntu runner 上首跑即抓到一个本机隐藏的 bug**：bare `pytest` 从根目录会误收集 `scripts/test_templates.py`（匹配 `test_*.py`、import 即有副作用 + 依赖本机 fixture）→ `ValueError: I/O operation on closed file`。修：加 `pytest.ini`（`testpaths = tests`）+ 改名 `scripts/test_templates.py → selfcheck_templates.py`（它是开发自检脚本，不是 pytest 测试）。**这正是测试网的意义——本机绿、干净 runner 抓错。**
 - 这是 C0。后续：C1 fail-loud（分类失败显式降级 / 阻断，不静默）、C2 输入消毒（文件名 + tid 白名单）、C3 README 现状 / 计划分离、C4 MIT LICENSE + 依赖 pin。
+
+## 2026-06-18 · C1 还债：分类失败 fail-loud（命门 · 不再静默套正文）
+
+回应 review 硬伤 #3（静默降级最危险）。按共识"对置信度诚实 + fail-loud"：
+- **`classify.classify` 改契约**：不再静默返 `{}`，改返 `{labels, confidence, failed_batches, total_batches}`。`confidence`：`full`（全成功）/ `partial`（部分批次失败、已样式兜底）/ `fallback`（全失败、纯样式兜底）；`_do_batch` 显式回报每批 ok。
+- **`pipeline`**：把置信度翻成大白话进 `report["classification"]`（含 `degraded`/`blocked`/`msg`），**显著告知用户**；并据此阻断——`fallback` 且样式兜底也无结构（无 heading）→ **阻断**（`blocked=True`、`status=blocked`、下载 409），不静默交付结构错的成品；样式兜底可用 → 仍交付但标 `degraded`。
+- **铁律落地**：永不把"降级跑"表现成"干净跑"。
+- **测试 +2**：`test_llm_failure_degrades_loudly_not_silently`（有标题样式 → 交付但 degraded + ⚠）、`test_llm_failure_blocks_when_fallback_useless`（无样式 → 阻断）；happy-path 加断言 `confidence=full`。合成 fixture 加 `build_min_with_heading_style` / `build_min_unstyled`。
+- 同步更新 `scripts/selfcheck_templates.py` 与 happy-path stub 到新契约。
+- 本地（CI 方式 bare pytest）：`compileall` 0 错、**pytest 3 passed**。
