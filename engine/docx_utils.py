@@ -34,6 +34,28 @@ def pt_of(template, size_name, default=10.5):
     return default
 
 
+def _fontname(v, default=None):
+    """字体名强转：str 原样；dict 取 cn/name/第一个字符串值；其余 default。防 dict 喂进 oxml 崩。"""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, dict):
+        for k in ("cn", "name", "latin", "default_cn"):
+            if isinstance(v.get(k), str):
+                return v[k]
+        for vv in v.values():
+            if isinstance(vv, str):
+                return vv
+    return default
+
+
+def _num(v, default=0.0):
+    """数值强转：数字原样；'25.4mm'/'3pt' 取数；dict/认不出 -> default。"""
+    if isinstance(v, (int, float)):
+        return float(v)
+    m = re.match(r"^\s*([0-9]+(?:\.[0-9]+)?)", str(v)) if v is not None else None
+    return float(m.group(1)) if m else default
+
+
 def _get_or_add(parent, tag):
     el = parent.find(qn(tag))
     if el is None:
@@ -43,19 +65,23 @@ def _get_or_add(parent, tag):
 
 
 def set_run_font(run, *, cn=None, latin=None, size_pt=None, bold=None, italic=None):
-    """关键：eastAsia(中文) 与 latin(西文) 分开绑定。"""
+    """关键：eastAsia(中文) 与 latin(西文) 分开绑定。font 名/字号强转，防 dict 喂进 oxml 崩。"""
+    cn = _fontname(cn)
+    latin = _fontname(latin)
     if size_pt is not None:
-        run.font.size = Pt(size_pt)
+        sp = _num(size_pt, 0)
+        if sp:
+            run.font.size = Pt(sp)
     if bold is not None:
-        run.font.bold = bold
+        run.font.bold = bool(bold)
     if italic is not None:
-        run.font.italic = italic
+        run.font.italic = bool(italic)
     rPr = run._element.get_or_add_rPr()
     rFonts = _get_or_add(rPr, "w:rFonts")
-    if latin is not None:
+    if latin:
         rFonts.set(qn("w:ascii"), latin)
         rFonts.set(qn("w:hAnsi"), latin)
-    if cn is not None:
+    if cn:
         rFonts.set(qn("w:eastAsia"), cn)
 
 
@@ -71,27 +97,27 @@ def set_paragraph_format(p, *, align=None, first_line_chars=None, line_spacing_s
     pPr = p._p.get_or_add_pPr()
     if first_line_chars is not None:
         ind = _get_or_add(pPr, "w:ind")
-        ind.set(qn("w:firstLineChars"), str(int(first_line_chars * 100)))
+        ind.set(qn("w:firstLineChars"), str(int(_num(first_line_chars, 0) * 100)))
         ind.set(qn("w:firstLine"), "0")     # 让 chars 生效
     if before_lines is not None or after_lines is not None:
         sp = _get_or_add(pPr, "w:spacing")
         if before_lines is not None:
-            sp.set(qn("w:beforeLines"), str(int(before_lines * 100)))
+            sp.set(qn("w:beforeLines"), str(int(_num(before_lines, 0) * 100)))
         if after_lines is not None:
-            sp.set(qn("w:afterLines"), str(int(after_lines * 100)))
+            sp.set(qn("w:afterLines"), str(int(_num(after_lines, 0) * 100)))
 
 
 def set_page(section, template):
-    pg = template["page"]
-    section.page_width = Mm(pg["width_mm"])
-    section.page_height = Mm(pg["height_mm"])
-    m = pg["margins_mm"]
-    section.top_margin = Mm(m["top"])
-    section.bottom_margin = Mm(m["bottom"])
-    section.left_margin = Mm(m["left"])
-    section.right_margin = Mm(m["right"])
-    section.header_distance = Mm(template["header"]["margin_mm"])
-    section.footer_distance = Mm(template["footer"]["margin_mm"])
+    pg = template.get("page", {})
+    section.page_width = Mm(_num(pg.get("width_mm"), 210))
+    section.page_height = Mm(_num(pg.get("height_mm"), 297))
+    m = pg.get("margins_mm", {}) if isinstance(pg.get("margins_mm"), dict) else {}
+    section.top_margin = Mm(_num(m.get("top"), 25.4))
+    section.bottom_margin = Mm(_num(m.get("bottom"), 25.4))
+    section.left_margin = Mm(_num(m.get("left"), 25.4))
+    section.right_margin = Mm(_num(m.get("right"), 25.4))
+    section.header_distance = Mm(_num(template.get("header", {}).get("margin_mm"), 15))
+    section.footer_distance = Mm(_num(template.get("footer", {}).get("margin_mm"), 15))
     # 文档网格 38 行 × 38 字
     grid = pg.get("grid")
     if grid:
@@ -108,7 +134,7 @@ def set_double_bottom_border(paragraph, upper_pt=3):
     pBdr = _get_or_add(pPr, "w:pBdr")
     bottom = _get_or_add(pBdr, "w:bottom")
     bottom.set(qn("w:val"), "thickThinSmallGap")    # 粗在上、细在下
-    bottom.set(qn("w:sz"), str(int(upper_pt * 8)))
+    bottom.set(qn("w:sz"), str(int(_num(upper_pt, 3) * 8)))
     bottom.set(qn("w:space"), "1")
     bottom.set(qn("w:color"), "000000")
 

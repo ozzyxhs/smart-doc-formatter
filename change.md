@@ -127,3 +127,10 @@ P0（本提交）：
 - 顶部一行汇总：`✗N 矛盾 · ⚪N 待补 · ◐N 推断 · ✓N 一致`。
 - **默认只列需看的**（矛盾+待补+推断），✓一致项折叠（"展开 N 项一致"）；矛盾红色置顶。
 - 实测(USTC custom-thesis-7d9506)自检抓到 2 处真·抽取错误：校名对齐(应左对齐却居中)、四级(应正文却当标题)——证明自检价值。
+
+## 2026-06-18 · 引擎大加固：任意编译模板都不崩（normalize + 防御取值）
+
+用户连续撞 `'56pt'`/`'dict'`/`'upper_pt'`，要求"别一个一个修，大自检一下，不行就重做"。**重做模板消费层**（根因：手工农大模板很干净，编译器/聊天产出的模板结构千奇百怪，引擎按农大形状硬吃就崩）：
+- `engine/template_norm.py`：`normalize()` 把**任意**模板深合并到一份完整默认骨架——**类型保护**（标量不能覆盖引擎需要的 dict，避免下标崩）、缺键补默认、size_table 补全。`pipeline.load_template` 统一 normalize。
+- `docx_utils` 取值全防御：`_fontname`(dict/类型不对→取字符串或跳过)、`_num`(带单位/dict→取数或默认)、`pt_of` 已健壮；`set_run_font`/`set_page`/`set_paragraph_format`/`set_double_bottom_border` 全部强转兜底，dict 再不会喂进 lxml。
+- **大自检** `scripts/test_templates.py`：一篇文章排过全部 4 模板（农大+xjit+2 个 USTC 编译），**全部 OK、内容守恒=True**。之前 3 个崩溃根除。

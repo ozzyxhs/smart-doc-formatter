@@ -13,9 +13,10 @@ from .gates import content_gate as CG
 
 
 def load_template(template_id):
+    from . import template_norm
     path = config.TEMPLATES_DIR / f"{template_id}.yaml"
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return template_norm.normalize(yaml.safe_load(f))
 
 
 def run(input_path, template_id, out_path, progress=None):
