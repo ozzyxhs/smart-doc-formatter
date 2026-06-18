@@ -11,12 +11,28 @@ from fastapi.responses import FileResponse
 import json
 import re
 import yaml
+from pathlib import Path
 from engine import config, pipeline, compiler, llm
 
 router = APIRouter()
 _jobs = {}
 _specs = {}
 _lock = threading.Lock()
+
+_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")     # 模板/规范 id 白名单（防路径穿越）
+
+
+def _safe_filename(name, default="upload.docx"):
+    """只取文件名本身（兼顾 / 与 \\ 两种分隔符），杜绝目录穿越落盘。"""
+    base = Path((name or "").replace("\\", "/")).name
+    return base or default
+
+
+def _safe_id(tid, what="id"):
+    """统一白名单：纯 [A-Za-z0-9_-]，非法即 400。所有把 id 拼进路径的入口都走它。"""
+    if not _ID_RE.match(tid or ""):
+        raise HTTPException(400, f"非法{what}")
+    return tid
 
 
 def _job_dir(jid):
@@ -42,8 +58,7 @@ def list_templates():
 
 @router.delete("/templates/{tid}")
 def delete_template(tid):
-    if not re.match(r"^[A-Za-z0-9_-]+$", tid or ""):     # 防路径穿越
-        raise HTTPException(400, "非法规范 id")
+    _safe_id(tid, "规范 id")                              # 防路径穿越（统一白名单）
     p = config.TEMPLATES_DIR / f"{tid}.yaml"
     if not p.exists():
         raise HTTPException(404, "无此规范")
@@ -71,7 +86,7 @@ async def create_spec(file: UploadFile = File(...), name: str = Form(...),
     sid = uuid.uuid4().hex[:12]
     d = config.JOBS_DIR / ("spec_" + sid)
     d.mkdir(parents=True, exist_ok=True)
-    inp = d / file.filename
+    inp = d / _safe_filename(file.filename)
     with open(inp, "wb") as f:
         shutil.copyfileobj(file.file, f)
     with _lock:
@@ -136,6 +151,7 @@ async def chat(payload: dict):
     messages = (payload or {}).get("messages", [])[-12:]   # 只带最近若干轮
     tpl, ctx_yaml = None, ""
     if tid:
+        _safe_id(tid, "规范 id")                            # tid 落到文件路径前先消毒
         p = config.TEMPLATES_DIR / f"{tid}.yaml"
         if p.exists():
             tpl = yaml.safe_load(p.read_text(encoding="utf-8"))
@@ -178,15 +194,17 @@ def _run(jid, input_path, template_id, out_path):
 async def create_job(file: UploadFile = File(...), template_id: str = Form(...)):
     if not (file.filename or "").lower().endswith(".docx"):
         raise HTTPException(400, "目前只支持 .docx 文件（P1）")
+    _safe_id(template_id, "规范 id")                       # template_id 会拼成模板路径，先消毒
+    safe_name = _safe_filename(file.filename, "input.docx")
     jid = uuid.uuid4().hex[:12]
     d = _job_dir(jid)
-    inp = d / file.filename
+    inp = d / safe_name
     with open(inp, "wb") as f:
         shutil.copyfileobj(file.file, f)
     out = d / "output.docx"
     with _lock:
         _jobs[jid] = {"id": jid, "status": "queued", "stage": "queued", "pct": 0,
-                      "filename": file.filename, "template_id": template_id,
+                      "filename": safe_name, "template_id": template_id,
                       "out_path": None, "report": None, "title": None}
     threading.Thread(target=_run, args=(jid, str(inp), template_id, str(out)), daemon=True).start()
     return {"job_id": jid}

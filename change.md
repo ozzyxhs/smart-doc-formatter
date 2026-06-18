@@ -182,3 +182,12 @@ P0（本提交）：
 - **测试 +2**：`test_llm_failure_degrades_loudly_not_silently`（有标题样式 → 交付但 degraded + ⚠）、`test_llm_failure_blocks_when_fallback_useless`（无样式 → 阻断）；happy-path 加断言 `confidence=full`。合成 fixture 加 `build_min_with_heading_style` / `build_min_unstyled`。
 - 同步更新 `scripts/selfcheck_templates.py` 与 happy-path stub 到新契约。
 - 本地（CI 方式 bare pytest）：`compileall` 0 错、**pytest 3 passed**。
+
+## 2026-06-18 · C2 还债：输入消毒（卫生级 · 防目录穿越）
+
+回应 review 硬伤 #4（安全边界草）。按定的"本机单用户 / 卫生级"范围（只消毒、不加鉴权）：
+- **统一白名单**：新增 `app/api._safe_filename`（只取文件名本身、兼顾 `/` 与 `\` 分隔符）+ `_safe_id`（`^[A-Za-z0-9_-]+$`，非法 400）。
+- **四个入口全上**：`create_job`（文件名 + `template_id`）、`create_spec`（文件名）、`/chat`（`tid`，之前完全没校验）、`delete_template`（改用同一把白名单，消除"各写各的"）。`template_id` / `tid` 会拼成模板路径，落盘 / 读盘前必过消毒。
+- **测试 +2**（`test_api_sanitize`）：`../`、`..\`、`a/b/c` 等被剥成纯文件名；`x.yaml` / `a.b` / 空 / `$(x)` 等 id 被拒。
+- 本地（CI 方式）：`compileall` 0 错、**pytest 5 passed**。
+- 注：`chat` 让模型回写模板 YAML 仍保留（本机单用户＝特性）；若转公开 / 多用户，另开硬化 issue（鉴权 + sandbox + 锁 chat 写盘 + 限流）。
